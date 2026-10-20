@@ -67,15 +67,21 @@ jobs:
           cache: npm
       - name: Build tools
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake g++ git
-      - name: Cache engines
+      - name: Restore engines
         id: engines
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: bin/linux
           key: engines-linux-${{ env.WHISPER_TAG }}-${{ env.LLAMA_TAG }}-${{ hashFiles('scripts/build-engines.sh') }}
       - name: Build engines (whisper.cpp + llama.cpp)
         if: steps.engines.outputs.cache-hit != 'true'
         run: bash scripts/build-engines.sh
+      - name: Save engines
+        if: steps.engines.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: bin/linux
+          key: ${{ steps.engines.outputs.cache-primary-key }}
       - run: npm ci
       - name: Build .deb
         run: npx electron-builder --linux deb --x64 --publish never
@@ -111,9 +117,9 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
-      - name: Cache engines
+      - name: Restore engines
         id: engines
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: bin/win
           key: engines-win-${{ env.WHISPER_TAG }}-${{ env.LLAMA_TAG }}-${{ hashFiles('scripts/build-engines.ps1', 'native/audiotap/audiotap.cpp') }}
@@ -121,6 +127,12 @@ jobs:
         if: steps.engines.outputs.cache-hit != 'true'
         shell: pwsh
         run: ./scripts/build-engines.ps1 -WhisperTag $env:WHISPER_TAG -LlamaTag $env:LLAMA_TAG
+      - name: Save engines
+        if: steps.engines.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: bin/win
+          key: ${{ steps.engines.outputs.cache-primary-key }}
       - name: Engines run
         shell: pwsh
         run: |
@@ -138,7 +150,14 @@ jobs:
           $id   = if ('${{ vars.MSIX_IDENTITY_NAME }}') { '${{ vars.MSIX_IDENTITY_NAME }}' } else { 'NULLGRID.NullScribe' }
           $pub  = if ('${{ vars.MSIX_PUBLISHER }}') { '${{ vars.MSIX_PUBLISHER }}' } else { 'CN=8685350B-5C4C-4422-9CDF-8AEB87F50B2F' }
           $name = if ('${{ vars.MSIX_PUBLISHER_DISPLAY_NAME }}') { '${{ vars.MSIX_PUBLISHER_DISPLAY_NAME }}' } else { 'NULLGRID' }
-          ./packaging/msix/build-msix.ps1 -Version $env:VERSION -IdentityName $id -Publisher $pub -PublisherDisplayName $name
+          $log = 'dist\msix-build.log'
+          try {
+            ./packaging/msix/build-msix.ps1 -Version $env:VERSION -IdentityName $id -Publisher $pub -PublisherDisplayName $name *>&1 | Tee-Object -FilePath $log
+          } catch {
+            Write-Host "::error title=MSIX build::$($_.Exception.Message)"
+            if (Test-Path $log) { Get-Content $log -Tail 25 | ForEach-Object { Write-Host "::warning title=MSIX log::$_" } }
+            exit 1
+          }
       - name: Check MSIX contents
         shell: pwsh
         run: |

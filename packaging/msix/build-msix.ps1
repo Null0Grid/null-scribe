@@ -48,12 +48,19 @@ $manifest = $manifest.Replace('{{IDENTITY_NAME}}', $IdentityName).Replace('{{PUB
 if ($manifest -match '\{\{') { throw 'Unfilled placeholder left in AppxManifest.xml' }
 Set-Content -Path (Join-Path $stage 'AppxManifest.xml') -Value $manifest -Encoding UTF8
 
-# resources.pri, so Windows picks the right scale / size of each logo
+# resources.pri, so Windows picks the right scale / size of each logo.
+# Index only the manifest + Assets (not the whole Electron tree, whose locale files confuse MakePri).
+$priRoot = Join-Path $OutDir 'pri-root'
+if (Test-Path $priRoot) { Remove-Item $priRoot -Recurse -Force }
+New-Item -ItemType Directory -Force $priRoot | Out-Null
+Copy-Item (Join-Path $stage 'AppxManifest.xml') $priRoot
+Copy-Item 'packaging\msix\Assets' (Join-Path $priRoot 'Assets') -Recurse
 $priConfig = Join-Path $OutDir 'priconfig.xml'
 & $makepri createconfig /cf $priConfig /dq en-US /pv 10.0.0 /o
 if ($LASTEXITCODE) { throw "makepri createconfig failed ($LASTEXITCODE)" }
-& $makepri new /pr $stage /cf $priConfig /mn (Join-Path $stage 'AppxManifest.xml') /of (Join-Path $stage 'resources.pri') /o
+& $makepri new /pr $priRoot /cf $priConfig /mn (Join-Path $priRoot 'AppxManifest.xml') /of (Join-Path $stage 'resources.pri') /o
 if ($LASTEXITCODE) { throw "makepri new failed ($LASTEXITCODE)" }
+Remove-Item $priRoot -Recurse -Force
 
 # Pack (MakeAppx validates the manifest against the schema while packing)
 $out = Join-Path $OutDir "NullScribe_${msixVersion}_x64.msix"
