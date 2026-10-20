@@ -1,0 +1,193 @@
+name: Release
+
+# Builds every package and publishes a GitHub Release:
+#   null-scribe_<v>_amd64.deb        Debian / Ubuntu
+#   NullScribe-<v>-Setup.exe         Windows installer (per-user, no admin)
+#   NullScribe_<v>.0_x64.msix        Microsoft Store package (unsigned: the Store signs it)
+#   SHA256SUMS
+#
+# Run it from Actions → Release → Run workflow, entering the version (e.g. 1.0.0).
+# The workflow creates the v<version> tag itself.
+#
+# Store identity comes from repository variables (Settings → Secrets and variables → Actions → Variables),
+# copied from Partner Center → Null Scribe → Product identity:
+#   MSIX_IDENTITY_NAME            e.g. NULLGRID.NullScribe
+#   MSIX_PUBLISHER                e.g. CN=8685350B-5C4C-4422-9CDF-8AEB87F50B2F
+#   MSIX_PUBLISHER_DISPLAY_NAME   e.g. NULLGRID
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release (x.y.z)
+        required: true
+        default: 1.0.0
+      draft:
+        description: Publish as a draft release
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+env:
+  VERSION: ${{ inputs.version }}
+  WHISPER_TAG: v1.9.5
+  LLAMA_TAG: b11757
+
+jobs:
+  check:
+    name: Check version + tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version matches package.json
+        run: |
+          echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "Version must be x.y.z"; exit 1; }
+          PKG=$(node -p "require('./package.json').version")
+          [ "$PKG" = "$VERSION" ] || { echo "package.json says $PKG but you asked for $VERSION"; exit 1; }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - run: npm test
+
+  linux:
+    name: Linux .deb
+    needs: check
+    # Older Ubuntu on purpose: the binaries then run on every newer distro (glibc is backward compatible).
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Build tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake g++ git
+      - name: Cache engines
+        id: engines
+        uses: actions/cache@v4
+        with:
+          path: bin/linux
+          key: engines-linux-${{ env.WHISPER_TAG }}-${{ env.LLAMA_TAG }}-${{ hashFiles('scripts/build-engines.sh') }}
+      - name: Build engines (whisper.cpp + llama.cpp)
+        if: steps.engines.outputs.cache-hit != 'true'
+        run: bash scripts/build-engines.sh
+      - run: npm ci
+      - name: Build .deb
+        run: npx electron-builder --linux deb --x64 --publish never
+      - name: Install test
+        run: |
+          DEB=$(ls dist/*.deb)
+          dpkg-deb --info "$DEB" | sed -n '1,40p'
+          sudo apt-get install -y "./$DEB"
+          test -x "/opt/Null Scribe/null-scribe"
+          test -x "/opt/Null Scribe/resources/bin/whisper-cli"
+          test -x "/opt/Null Scribe/resources/bin/llama-server"
+          "/opt/Null Scribe/resources/bin/llama-server" --version 2>&1 | tail -n 2 || true
+          ldd "/opt/Null Scribe/resources/bin/whisper-cli" | grep -q "not found" && { echo "whisper-cli has missing libraries"; exit 1; } || true
+          ldd "/opt/Null Scribe/resources/bin/llama-server" | grep -q "not found" && { echo "llama-server has missing libraries"; exit 1; } || true
+          ls /usr/share/applications | grep -i scribe
+          sudo apt-get remove -y null-scribe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb
+          path: dist/*.deb
+          if-no-files-found: error
+
+  windows:
+    name: Windows installer + Store MSIX
+    needs: check
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Cache engines
+        id: engines
+        uses: actions/cache@v4
+        with:
+          path: bin/win
+          key: engines-win-${{ env.WHISPER_TAG }}-${{ env.LLAMA_TAG }}-${{ hashFiles('scripts/build-engines.ps1', 'native/audiotap/audiotap.cpp') }}
+      - name: Build engines (whisper.cpp + llama.cpp + scribe-audiotap, MSVC)
+        if: steps.engines.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: ./scripts/build-engines.ps1 -WhisperTag $env:WHISPER_TAG -LlamaTag $env:LLAMA_TAG
+      - name: Engines run
+        shell: pwsh
+        run: |
+          Get-ChildItem bin\win | Format-Table Name, Length
+          .\bin\win\llama-server.exe --version
+          # CI runners have no audio devices, so an empty list (or an error) is fine here; this only checks the exe starts.
+          .\bin\win\scribe-audiotap.exe list
+          $global:LASTEXITCODE = 0
+      - run: npm ci
+      - name: Build installer (NSIS) + unpacked app
+        run: npx electron-builder --win nsis --x64 --publish never
+      - name: Build Store MSIX
+        shell: pwsh
+        run: |
+          $id   = if ('${{ vars.MSIX_IDENTITY_NAME }}') { '${{ vars.MSIX_IDENTITY_NAME }}' } else { 'NULLGRID.NullScribe' }
+          $pub  = if ('${{ vars.MSIX_PUBLISHER }}') { '${{ vars.MSIX_PUBLISHER }}' } else { 'CN=8685350B-5C4C-4422-9CDF-8AEB87F50B2F' }
+          $name = if ('${{ vars.MSIX_PUBLISHER_DISPLAY_NAME }}') { '${{ vars.MSIX_PUBLISHER_DISPLAY_NAME }}' } else { 'NULLGRID' }
+          ./packaging/msix/build-msix.ps1 -Version $env:VERSION -IdentityName $id -Publisher $pub -PublisherDisplayName $name
+      - name: Check MSIX contents
+        shell: pwsh
+        run: |
+          $msix = Get-ChildItem dist\*.msix | Select-Object -First 1
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $z = [IO.Compression.ZipFile]::OpenRead($msix.FullName)
+          $names = $z.Entries.FullName
+          $z.Dispose()
+          foreach ($need in 'AppxManifest.xml', 'NullScribe.exe', 'resources.pri', 'resources/bin/whisper-cli.exe', 'resources/bin/llama-server.exe', 'resources/bin/scribe-audiotap.exe') {
+            if ($names -notcontains $need) { throw "MSIX is missing $need" }
+          }
+          "{0}  {1:N1} MB  ({2} files)" -f $msix.Name, ($msix.Length / 1MB), $names.Count
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            dist/*.exe
+            dist/*.msix
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: [linux, windows]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - name: Checksums
+        working-directory: out
+        run: |
+          ls -la
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
+          name: Null Scribe ${{ env.VERSION }}
+          draft: ${{ inputs.draft }}
+          files: out/*
+          body: |
+            **Null Scribe ${{ env.VERSION }}**: record or import conversations, transcribe them on your device and get an AI summary. Your data. Your grid.
+
+            | File | For |
+            |---|---|
+            | `null-scribe_${{ env.VERSION }}_amd64.deb` | Debian / Ubuntu: `sudo apt install ./null-scribe_${{ env.VERSION }}_amd64.deb` |
+            | `NullScribe-${{ env.VERSION }}-Setup.exe` | Windows 10 (2004+) / 11 installer, no admin needed |
+            | `NullScribe_${{ env.VERSION }}.0_x64.msix` | Microsoft Store submission (upload in Partner Center; the Store signs it) |
+
+            The speech model (~140 MB) and the built-in Llama 3.2 3B summary model (~2 GB) download on first launch. Built with Llama.

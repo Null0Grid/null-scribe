@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self' blob:; connect-src 'none'" />
+  <title>Null Scribe</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">
+      <img class="brand-icon" src="icon.svg" alt="" />
+      <div class="brand-text">
+        <div class="brand-mark">NULL<span>//</span>SCRIBE</div>
+        <div class="brand-tag"><span class="p">Your data.</span> <span class="c">Your grid.</span></div>
+      </div>
+    </div>
+    <button id="newBtn" class="btn btn-primary btn-block">+ New capture</button>
+    <div class="list-label">Sessions</div>
+    <ul id="sessionList" class="session-list"></ul>
+    <section id="livePanel" class="live-panel lit" hidden aria-live="polite">
+      <div class="live-head"><span id="liveDot" class="live-dot"></span><span id="liveTitle">Live transcript</span><span id="liveCount" class="live-count"></span></div>
+      <div id="liveBody" class="live-body"></div>
+    </section>
+    <button id="settingsBtn" class="btn btn-ghost btn-block sidebar-foot">Settings</button>
+  </aside>
+
+  <main class="main">
+    <!-- Capture -->
+    <section id="viewCapture" class="view">
+      <div class="capture">
+        <div class="eyebrow">New capture</div>
+        <div class="mode-switch" role="tablist">
+          <button class="mode active" data-mode="mic" role="tab">Microphone</button>
+          <button class="mode" data-mode="meeting" role="tab">Meeting</button>
+        </div>
+        <input id="titleInput" class="title-input" placeholder="Name this conversation (optional)" maxlength="120" />
+        <label id="micRow" class="mic-row" hidden>
+          <span class="mic-label">Microphone</span>
+          <select id="micSelect"><option value="">System default</option></select>
+        </label>
+
+        <div id="meetingPanel" class="meeting" hidden>
+          <div id="meetingUnavailable" class="error-box" hidden></div>
+          <div class="meeting-head">
+            <span class="meeting-label">Apps to record</span>
+            <button id="meetingRefresh" class="btn btn-ghost btn-sm">Refresh</button>
+          </div>
+          <ul id="meetingApps" class="meeting-apps"></ul>
+          <label class="check"><input type="checkbox" id="meetingMic" checked /> <span>Include my microphone <em>(labeled “You”; apps are labeled by name)</em></span></label>
+          <p class="fineprint">Only the apps you tick are recorded. Music, games and other sounds are left out. Join the call first so the app shows up; ticked apps are remembered and picked up automatically if they start later.</p>
+        </div>
+
+        <button id="recordBtn" class="record" aria-label="Start recording"><span class="record-dot"></span></button>
+        <div id="recordTime" class="record-time">00:00</div>
+        <canvas id="meter" class="meter" width="320" height="40"></canvas>
+        <div id="meetingLive" class="meeting-live" hidden></div>
+        <div id="recordHint" class="hint">Press to record from your microphone</div>
+        <div id="importBlock" class="import-block">
+          <div class="divider"><span>or</span></div>
+          <button id="importBtn" class="btn">Import an audio or video file</button>
+        </div>
+        <p class="fineprint">Everything is processed on this device (or your own Ollama server, if you choose). Only record people who have agreed to it.</p>
+      </div>
+    </section>
+
+    <!-- Processing -->
+    <section id="viewProcess" class="view" hidden>
+      <div class="process">
+        <div class="eyebrow">Processing</div>
+        <h2 id="processTitle" class="process-title"></h2>
+        <ol class="stages">
+          <li data-stage="convert"><span class="stage-name">Convert audio</span><div class="bar"><i></i></div></li>
+          <li data-stage="model"><span class="stage-name">Speech model</span><div class="bar"><i></i></div></li>
+          <li data-stage="transcribe"><span class="stage-name">Transcribe</span><div class="bar"><i></i></div></li>
+          <li data-stage="summarize"><span class="stage-name">Summarize</span><div class="bar"><i></i></div></li>
+        </ol>
+        <div id="processMsg" class="process-msg mono"></div>
+        <button id="cancelBtn" class="btn btn-ghost">Cancel</button>
+      </div>
+    </section>
+
+    <!-- Session -->
+    <section id="viewSession" class="view" hidden>
+      <header class="session-head">
+        <input id="sessionTitle" class="session-title" maxlength="120" />
+        <div id="sessionMeta" class="session-meta mono"></div>
+        <div class="actions">
+          <button id="notesBtn" class="btn btn-primary" title="Save as a note in your Null Notes vault and open it">Send to Notes</button>
+          <div class="dl-wrap">
+            <button id="driveBtn" class="btn" aria-haspopup="dialog" aria-expanded="false" title="Upload to your Null Drive server">Send to Drive ▾</button>
+            <div id="driveSheet" class="dl-menu drive-sheet lit" hidden>
+              <div class="dl-group">Upload to Null Drive</div>
+              <label class="check"><input type="checkbox" id="driveMd" /> <span>Summary + transcript <em>.md</em></span></label>
+              <label class="check"><input type="checkbox" id="drivePdf" /> <span>PDF <em>.pdf</em></span></label>
+              <label class="check"><input type="checkbox" id="driveAudio" /> <span>Audio</span>
+                <select id="driveAudioFmt"><option value="mp3">MP3</option><option value="m4a">M4A</option><option value="flac">FLAC</option><option value="ogg">OGG</option><option value="wav">WAV</option></select>
+              </label>
+              <div id="driveDest" class="drive-dest mono"></div>
+              <button id="driveUploadBtn" class="btn btn-primary btn-block">Upload</button>
+            </div>
+          </div>
+          <button id="claudeBtn" class="btn">Open in Claude</button>
+          <div class="dl-wrap">
+            <button id="downloadBtn" class="btn" aria-haspopup="menu" aria-expanded="false">Download ▾</button>
+            <div id="downloadMenu" class="dl-menu lit" role="menu" hidden></div>
+          </div>
+          <button id="copyBtn" class="btn btn-ghost">Copy summary</button>
+          <button id="resumBtn" class="btn btn-ghost">Re-summarize</button>
+          <button id="deleteBtn" class="btn btn-ghost btn-danger">Delete</button>
+        </div>
+      </header>
+      <div id="sessionError" class="error-box" hidden></div>
+      <nav class="tabs">
+        <button class="tab active" data-tab="summary">Summary</button>
+        <button class="tab" data-tab="transcript">Transcript</button>
+        <input id="transcriptFilter" class="filter" placeholder="Filter transcript…" hidden />
+      </nav>
+      <article id="summaryPane" class="pane md"></article>
+      <article id="transcriptPane" class="pane transcript" hidden></article>
+    </section>
+  </main>
+
+  <dialog id="settingsDialog" class="dialog lit">
+    <form method="dialog" id="settingsForm">
+      <h2>Settings</h2>
+
+      <fieldset>
+        <legend>Summarizer</legend>
+        <label>Engine
+          <select name="summaryEngine" id="engineSelect">
+            <option value="builtin">Built-in model (runs in the app, no server needed)</option>
+            <option value="ollama">My Ollama server</option>
+          </select>
+        </label>
+        <div id="builtinBox" class="sub-box">
+          <label>Built-in model <select name="builtinModel" id="builtinSelect"></select></label>
+          <p id="builtinInfo" class="fineprint"></p>
+        </div>
+        <div id="ollamaBox" class="sub-box">
+        <label>Server address
+          <div class="row">
+            <input name="ollamaHost" placeholder="http://127.0.0.1:11434" />
+            <button type="button" id="testOllamaBtn" class="btn">Test</button>
+          </div>
+        </label>
+        <label>Model
+          <input name="ollamaModel" list="ollamaModels" placeholder="llama3.2:3b" />
+          <datalist id="ollamaModels"></datalist>
+        </label>
+        <div id="ollamaStatus" class="status mono"></div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Transcription (whisper.cpp)</legend>
+        <label>Speech model <select name="whisperModel" id="whisperSelect"></select></label>
+        <label>Language
+          <select name="language">
+            <option value="auto">Auto-detect</option>
+            <option value="en">English</option>
+            <option value="pl">Polish</option>
+            <option value="de">German</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+          </select>
+        </label>
+        <p class="fineprint">".en" models only understand English. Models download once, on first use.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Null Notes</legend>
+        <label>Vault
+          <div class="row">
+            <select id="vaultSelect"></select>
+            <button type="button" id="pickFolderBtn" class="btn">Choose…</button>
+          </div>
+          <input name="notesFolder" type="hidden" />
+        </label>
+        <label class="check"><input type="checkbox" name="notesOpenAfter" /> <span>Open the note in Null Notes after sending</span></label>
+        <p class="fineprint">Sessions are saved as notes in a <code>Scribe</code> folder in the vault, with a Null Notes id, so they show up in Null Notes and in Null Search.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Null Drive</legend>
+        <label>Server address
+          <input name="driveAddress" placeholder="http://192.168.1.50:8080" autocomplete="off" />
+        </label>
+        <label>Token
+          <div class="row">
+            <input id="driveToken" type="password" placeholder="Paste a token from Null Drive → Devices" autocomplete="off" />
+            <button type="button" id="driveTestBtn" class="btn">Test</button>
+          </div>
+        </label>
+        <div id="driveStatus" class="status"></div>
+        <label>Folder on Drive
+          <input name="driveFolder" placeholder="Null Scribe" />
+        </label>
+        <div class="checks-row">
+          <span class="mic-label">Upload by default</span>
+          <label class="check"><input type="checkbox" name="driveSendMd" /> <span>.md</span></label>
+          <label class="check"><input type="checkbox" name="driveSendPdf" /> <span>PDF</span></label>
+          <label class="check"><input type="checkbox" name="driveSendAudio" /> <span>Audio</span></label>
+          <select name="driveAudioFormat"><option value="mp3">MP3</option><option value="m4a">M4A</option><option value="flac">FLAC</option><option value="ogg">OGG</option><option value="wav">WAV</option></select>
+        </div>
+        <p class="fineprint">Use a token with full access (a search-only token can't upload). It's stored encrypted by your operating system.</p>
+      </fieldset>
+
+
+      <fieldset>
+        <legend>Advanced</legend>
+        <label>Chunk size (characters per summary pass)
+          <input name="chunkChars" type="number" min="1500" max="30000" step="500" />
+        </label>
+      </fieldset>
+
+      <div class="dialog-actions">
+        <button value="cancel" class="btn btn-ghost">Cancel</button>
+        <button id="saveSettingsBtn" value="save" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- First-run setup: downloads the models the installer doesn't ship -->
+  <section id="setupScreen" class="setup" hidden>
+    <div class="setup-card">
+      <div class="setup-brand">
+        <img src="icon.svg" alt="" />
+        <div><div class="brand-mark">NULL<span>//</span>SCRIBE</div><div class="brand-tag"><span class="p">Your data.</span> <span class="c">Your grid.</span></div></div>
+      </div>
+      <h1>Setting up Null Scribe</h1>
+      <p class="setup-lead">Null Scribe runs its AI on your device. It needs to download its models once. After that it works fully offline.</p>
+      <ul id="setupItems" class="setup-items"></ul>
+      <div id="setupSummary" class="setup-summary mono"></div>
+      <div id="setupError" class="error-box setup-error" hidden></div>
+      <div class="setup-actions">
+        <button id="setupStartBtn" class="btn btn-primary">Download</button>
+        <button id="setupCancelBtn" class="btn btn-ghost" hidden>Pause</button>
+        <button id="setupOllamaBtn" class="btn btn-ghost">Use my Ollama server instead</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+  <script src="markdown.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

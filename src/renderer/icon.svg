@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Null Scribe">
+  <!-- Same family as the Null Drive tile: dark tile, cyan neon outline, cyan // slashes with pink bloom, green status LED.
+       Null Scribe's shape: a speech bubble (a conversation) holding the // and a voice waveform. -->
+  <defs>
+    <filter id="s-bay" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="7"/><feFlood flood-color="#00e5ff" flood-opacity=".75"/>
+      <feComposite operator="in" in2="SourceAlpha"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="s-sl" x="-100%" y="-30%" width="300%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="22" result="b2"/><feFlood flood-color="#ff2e88" flood-opacity=".7"/><feComposite operator="in" in2="b2" result="g2"/>
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="b1"/><feFlood flood-color="#96beff" flood-opacity=".9"/><feComposite operator="in" in2="b1" result="g1"/>
+      <feMerge><feMergeNode in="g2"/><feMergeNode in="g1"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="s-wave" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="6"/><feFlood flood-color="#ff2e88" flood-opacity=".55"/>
+      <feComposite operator="in" in2="SourceAlpha"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="s-led" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="10"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="s-tile"><rect width="1024" height="1024" rx="224"/></clipPath>
+  </defs>
+  <g clip-path="url(#s-tile)">
+    <rect width="1024" height="1024" fill="#08090c"/>
+    <!-- speech bubble -->
+    <path d="M196 216 H828 a56 56 0 0 1 56 56 V654 a56 56 0 0 1 -56 56 H404 L276 816 V710 H196 a56 56 0 0 1 -56 -56 V272 a56 56 0 0 1 56 -56 Z"
+          fill="none" stroke="#00e5ff" stroke-width="22" stroke-linejoin="round" filter="url(#s-bay)"/>
+    <!-- // -->
+    <polygon points="318,292 384,292 314,634 248,634" fill="#00e8ff" filter="url(#s-sl)"/>
+    <polygon points="452,292 518,292 448,634 382,634" fill="#00e8ff" filter="url(#s-sl)"/>
+    <!-- voice waveform -->
+    <g stroke="#ff2e88" stroke-width="30" stroke-linecap="round" filter="url(#s-wave)">
+      <line x1="588" y1="418" x2="588" y2="508"/>
+      <line x1="648" y1="350" x2="648" y2="576"/>
+      <line x1="708" y1="396" x2="708" y2="530"/>
+      <line x1="768" y1="438" x2="768" y2="488"/>
+    </g>
+    <!-- status LED + slot, as on the Null Drive tile -->
+    <circle cx="790" cy="640" r="20" fill="#39ff88" filter="url(#s-led)"/>
+    <rect x="610" y="628" width="140" height="24" rx="8" fill="#1f2a33"/>
+  </g>
+</svg>

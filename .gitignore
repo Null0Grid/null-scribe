@@ -1,0 +1,9 @@
+node_modules/
+dist/
+bin/
+.engine-build/
+*.log
+*.pdb
+.test-models/
+test-report.md
+native/audiotap/*.exe

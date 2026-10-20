@@ -1,0 +1,13 @@
+Copyright (c) NULLGRID. All rights reserved.
+
+This software and its source code are proprietary. No part of it may be
+copied, modified, distributed or used without prior written permission
+from NULLGRID.
+
+Third-party components keep their own licenses:
+- whisper.cpp (MIT) — https://github.com/ggml-org/whisper.cpp
+- FFmpeg (LGPL/GPL, via ffmpeg-static) — https://ffmpeg.org
+- llama.cpp (MIT) — https://github.com/ggml-org/llama.cpp
+- Electron (MIT) — https://www.electronjs.org
+- Llama 3.2 (downloaded at runtime) — Llama 3.2 Community License. Built with Llama.
+- Qwen 2.5 3B (optional, downloaded at runtime) — Qwen Research License

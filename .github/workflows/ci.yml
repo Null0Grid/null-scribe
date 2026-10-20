@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests (Linux)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: ffmpeg (used by the audio tests)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - name: Syntax check
+        run: for f in $(git ls-files 'src/*.js' 'scripts/*.js' 'test/*.js'); do node --check "$f"; done
+      - name: Unit + integration tests
+        run: npm test
+
+  windows-helper:
+    name: Meeting-mode helper builds with MSVC
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Compile scribe-audiotap.exe
+        shell: pwsh
+        run: |
+          cl /nologo /O2 /EHsc /std:c++17 /MT /W4 /DUNICODE /D_UNICODE native\audiotap\audiotap.cpp ole32.lib mmdevapi.lib uuid.lib /Fe:scribe-audiotap.exe
+          if ($LASTEXITCODE) { exit 1 }
+          .\scribe-audiotap.exe list
+          .\scribe-audiotap.exe list-mics
+          exit 0

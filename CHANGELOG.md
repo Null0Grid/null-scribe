@@ -1,0 +1,14 @@
+# Changelog
+
+## 1.0.0 — first release
+
+- **Capture:** record from a chosen microphone, import any audio/video file, or **Meeting mode**: record chosen apps (Zoom, Discord, Teams…) while leaving others (Spotify, games) out. PipeWire on Linux, Windows process loopback on Windows 10 2004+.
+- **On-device transcription** with whisper.cpp. Speaker labels: **You** (your mic) and each app by name (`Discord:`), with mic-echo removal and a **live transcript** panel while recording.
+- **Transcript cleanup:** removes um/uh, stutters and stage directions; keeps every real word. The verbatim copy is kept too.
+- **AI summary** from the built-in **Llama 3.2 3B** (llama.cpp, runs in the app, no server) or your own **Ollama** server: overview, key points with timestamps, decisions, action items, open questions.
+- **Null Grid integration:** **Send to Notes** (a note with a Null Notes id, opened via `nullnotes://`) and **Send to Drive** (`.md`, PDF and/or audio uploaded to Null Drive, never overwriting).
+- **Downloads:** transcript as `.md`, `.txt`, `.pdf`, `.html`; audio as MP3, M4A, WAV, FLAC, OGG from a lossless master.
+- **Open in Claude:** copies the summary and transcript and opens claude.ai.
+- **First-run setup** downloads the models with progress, pause/resume and a disk-space check.
+- **Neon Lab** design, the Null Grid look, dark only.
+- Packages: `.deb`, Windows installer, Microsoft Store MSIX.
