@@ -123,7 +123,7 @@ Releases are built by GitHub Actions (`.github/workflows/release.yml`): **Action
 
 ### Microsoft Store
 
-1. In Partner Center, reserve the name **Null Scribe**, then copy *Product identity* into repository variables (Settings → Secrets and variables → Actions → Variables): `MSIX_IDENTITY_NAME`, `MSIX_PUBLISHER`, `MSIX_PUBLISHER_DISPLAY_NAME`. Without them the build uses `NULLGRID.NullScribe` and the NULLGRID publisher.
+1. The Partner Center identity is built in: `NULLGRID.NullScribe`, publisher `CN=8685350B-5C4C-4422-9CDF-8AEB87F50B2F`, display name `NULLGRID` (package family `NULLGRID.NullScribe_yb898v9ybphdc`, Store ID [9P2FHWTQPN6G](https://apps.microsoft.com/detail/9P2FHWTQPN6G)). The repository variables `MSIX_IDENTITY_NAME`, `MSIX_PUBLISHER` and `MSIX_PUBLISHER_DISPLAY_NAME` override them if they ever change.
 2. Run the Release workflow and upload the `.msix` to a new submission. It's unsigned on purpose; the Store signs it.
 3. Listing notes: mention "Built with Llama" (Llama 3.2 license). In the certification notes, explain the microphone and audio-recording use, and that the models download on first launch.
 
