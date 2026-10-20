@@ -143,6 +143,8 @@ The manifest (`packaging/msix/AppxManifest.xml`) declares full trust and the mic
 
 Inside it: `settings.json`, `models/` (speech and summary models), and `sessions/<id>/` holding `audio.wav`, `transcript.json`, `summary.md`, `document.md` and `meta.json`. Deleting a session removes its folder.
 
+Nothing is sent to NULLGRID. See the [Privacy Policy](PRIVACY.md) for what leaves your device and when.
+
 ## Project layout
 
 ```
