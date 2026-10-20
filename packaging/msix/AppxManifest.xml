@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Null Scribe — Microsoft Store (MSIX) manifest.
-     {{PLACEHOLDERS}} are filled by packaging/msix/build-msix.ps1 from the release version and the
+     The double-brace placeholders below are filled by packaging/msix/build-msix.ps1 from the release version and the
      Partner Center identity (Product identity page): repository variables MSIX_IDENTITY_NAME,
      MSIX_PUBLISHER, MSIX_PUBLISHER_DISPLAY_NAME. -->
 <Package
