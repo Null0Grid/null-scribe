@@ -107,6 +107,9 @@ Grab the latest build from [Releases](https://github.com/Null0Grid/null-scribe/r
 | File | For |
 |---|---|
 | `null-scribe_<version>_amd64.deb` | Debian / Ubuntu: `sudo apt install ./null-scribe_<version>_amd64.deb` |
+| `null-scribe-<version>.x86_64.rpm` | Fedora / openSUSE / RHEL: `sudo dnf install ./null-scribe-<version>.x86_64.rpm` |
+| `NullScribe-<version>-x86_64.AppImage` | Any Linux distro, no install: `chmod +x NullScribe-*.AppImage` and run it (needs FUSE 2, e.g. `libfuse2`) |
+| `null-scribe_<version>_x64.tar.gz` | Any Linux distro: unpack and run `./null-scribe` |
 | `NullScribe-<version>-Setup.exe` | Windows 10 (2004+) / 11, per-user install, no admin |
 | `NullScribe_<version>.0_x64.msix` | Microsoft Store submission |
 
@@ -117,9 +120,11 @@ Needs a 64-bit CPU with AVX2 (Intel 2013+ / AMD 2015+). The models (~2.2 GB) dow
 Releases are built by GitHub Actions (`.github/workflows/release.yml`): **Actions → Release → Run workflow**, enter the version (it must match `package.json`). The workflow:
 
 1. runs the tests;
-2. **Linux:** builds whisper.cpp and llama.cpp (pinned tags, AVX2 baseline), then the `.deb` on Ubuntu 22.04 (so it runs on newer distros), and test-installs it;
+2. **Linux:** builds whisper.cpp and llama.cpp (pinned tags, AVX2 baseline), then the `.deb`, `.rpm`, AppImage and `.tar.gz` on Ubuntu 22.04 (so they run on newer distros); test-installs the `.deb` on Ubuntu and the `.rpm` on Fedora;
 3. **Windows:** builds the engines and the Meeting-mode helper with MSVC (static runtime), the NSIS installer, and the **Store MSIX** with MakePri + MakeAppx (`packaging/msix/build-msix.ps1`);
-4. publishes a GitHub Release with all three files and `SHA256SUMS`, creating the `v<version>` tag.
+4. publishes a GitHub Release with every package and `SHA256SUMS`, creating the `v<version>` tag.
+
+Tick **linux_extras_only** to add the `.rpm`, AppImage and `.tar.gz` to a release that already exists, without replacing its other files.
 
 ### Microsoft Store
 
@@ -131,7 +136,7 @@ The manifest (`packaging/msix/AppxManifest.xml`) declares full trust and the mic
 
 ### Building locally
 
-- **Linux:** `npm ci && npm run build:engines && npm run dist:linux` → `dist/null-scribe_<v>_amd64.deb`
+- **Linux:** `npm ci && npm run build:engines && npm run dist:linux` → `.deb`, `.rpm` (needs `rpmbuild`), AppImage and `.tar.gz` in `dist/`
 - **Windows** (Developer PowerShell for VS 2022): `npm ci; ./scripts/build-engines.ps1; npm run dist:win; ./packaging/msix/build-msix.ps1 -Version <v>`
 
 ## Where data lives

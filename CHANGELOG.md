@@ -11,4 +11,4 @@
 - **Open in Claude:** copies the summary and transcript and opens claude.ai.
 - **First-run setup** downloads the models with progress, pause/resume and a disk-space check.
 - **Neon Lab** design, the Null Grid look, dark only.
-- Packages: `.deb`, Windows installer, Microsoft Store MSIX.
+- Packages: `.deb`, `.rpm`, AppImage, `.tar.gz`, Windows installer, Microsoft Store MSIX.

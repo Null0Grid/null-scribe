@@ -18,7 +18,7 @@
     "test:recording": "node scripts/test-recording.js",
     "test:budget": "node scripts/test-recording.js examples/budget-meeting/budget_meeting.mp3 examples/budget-meeting/transcript.md",
     "build:audiotap-cross": "python3 -m ziglang c++ -target x86_64-windows-gnu -O2 -std=c++17 -municode native/audiotap/audiotap.cpp -lole32 -lmmdevapi -luuid -o native/audiotap/scribe-audiotap.exe",
-    "dist:linux": "electron-builder --linux deb --publish never",
+    "dist:linux": "electron-builder --linux deb rpm AppImage tar.gz --x64 --publish never",
     "dist:win": "electron-builder --win nsis --x64 --publish never",
     "dist:msix": "pwsh packaging/msix/build-msix.ps1 -Version %npm_package_version%"
   },
@@ -55,7 +55,10 @@
     },
     "linux": {
       "target": [
-        "deb"
+        "deb",
+        "rpm",
+        "AppImage",
+        "tar.gz"
       ],
       "category": "Office",
       "maintainer": "NULLGRID <volosteele55@proton.me>",
@@ -78,6 +81,18 @@
         "pipewire-bin",
         "libsecret-1-0"
       ]
+    },
+    "rpm": {
+      "artifactName": "null-scribe-${version}.x86_64.rpm",
+      "fpm": [
+        "--rpm-tag",
+        "Recommends: pipewire-utils",
+        "--rpm-tag",
+        "Recommends: libsecret"
+      ]
+    },
+    "appImage": {
+      "artifactName": "NullScribe-${version}-x86_64.AppImage"
     },
     "win": {
       "target": [

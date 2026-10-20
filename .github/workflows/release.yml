@@ -2,6 +2,9 @@ name: Release
 
 # Builds every package and publishes a GitHub Release:
 #   null-scribe_<v>_amd64.deb        Debian / Ubuntu
+#   null-scribe-<v>.x86_64.rpm       Fedora / openSUSE / RHEL
+#   NullScribe-<v>-x86_64.AppImage   any distro, no install
+#   null-scribe_<v>_x64.tar.gz       any distro, unpack and run
 #   NullScribe-<v>-Setup.exe         Windows installer (per-user, no admin)
 #   NullScribe_<v>.0_x64.msix        Microsoft Store package (unsigned: the Store signs it)
 #   SHA256SUMS
@@ -24,6 +27,10 @@ on:
         default: 1.0.0
       draft:
         description: Publish as a draft release
+        type: boolean
+        default: false
+      linux_extras_only:
+        description: Only add the .rpm, AppImage and .tar.gz to the existing v<version> release (leaves its other files alone)
         type: boolean
         default: false
 
@@ -55,7 +62,7 @@ jobs:
       - run: npm test
 
   linux:
-    name: Linux .deb
+    name: Linux packages (.deb, .rpm, AppImage, .tar.gz)
     needs: check
     # Older Ubuntu on purpose: the binaries then run on every newer distro (glibc is backward compatible).
     runs-on: ubuntu-22.04
@@ -66,7 +73,7 @@ jobs:
           node-version: 22
           cache: npm
       - name: Build tools
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake g++ git
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake g++ git rpm
       - name: Restore engines
         id: engines
         uses: actions/cache/restore@v4
@@ -83,8 +90,8 @@ jobs:
           path: bin/linux
           key: ${{ steps.engines.outputs.cache-primary-key }}
       - run: npm ci
-      - name: Build .deb
-        run: npx electron-builder --linux deb --x64 --publish never
+      - name: Build packages
+        run: npx electron-builder --linux deb rpm AppImage tar.gz --x64 --publish never
       - name: Install test
         run: |
           DEB=$(ls dist/*.deb)
@@ -98,15 +105,43 @@ jobs:
           ldd "/opt/Null Scribe/resources/bin/llama-server" | grep -q "not found" && { echo "llama-server has missing libraries"; exit 1; } || true
           ls /usr/share/applications | grep -i scribe
           sudo apt-get remove -y null-scribe
+      - name: Install test (.rpm on Fedora)
+        run: |
+          RPM=$(ls dist/*.rpm)
+          rpm -qp --requires --recommends "$RPM"
+          docker run --rm -v "$PWD/dist:/dist:ro" fedora:41 bash -euc '
+            dnf install -y -q /dist/*.rpm
+            test -x "/opt/Null Scribe/null-scribe"
+            for b in whisper-cli llama-server; do
+              if ldd "/opt/Null Scribe/resources/bin/$b" | grep "not found"; then echo "$b has missing libraries"; exit 1; fi
+            done
+            "/opt/Null Scribe/resources/bin/llama-server" --version 2>&1 | tail -n 2
+            ls /usr/share/applications | grep -i scribe'
+      - name: Check AppImage and .tar.gz
+        run: |
+          cd dist
+          chmod +x *.AppImage
+          ./*.AppImage --appimage-extract >/dev/null
+          test -x squashfs-root/null-scribe
+          test -x squashfs-root/resources/bin/whisper-cli
+          test -x squashfs-root/resources/bin/llama-server
+          rm -rf squashfs-root
+          tar tzf *.tar.gz | grep -q 'resources/bin/llama-server$'
+          ls -la *.deb *.rpm *.AppImage *.tar.gz
       - uses: actions/upload-artifact@v4
         with:
-          name: deb
-          path: dist/*.deb
+          name: linux
+          path: |
+            dist/*.deb
+            dist/*.rpm
+            dist/*.AppImage
+            dist/*.tar.gz
           if-no-files-found: error
 
   windows:
     name: Windows installer + Store MSIX
     needs: check
+    if: ${{ !inputs.linux_extras_only }}
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
@@ -181,6 +216,7 @@ jobs:
   publish:
     name: Publish GitHub Release
     needs: [linux, windows]
+    if: ${{ !inputs.linux_extras_only }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/download-artifact@v4
@@ -206,7 +242,53 @@ jobs:
             | File | For |
             |---|---|
             | `null-scribe_${{ env.VERSION }}_amd64.deb` | Debian / Ubuntu: `sudo apt install ./null-scribe_${{ env.VERSION }}_amd64.deb` |
+            | `null-scribe-${{ env.VERSION }}.x86_64.rpm` | Fedora / openSUSE / RHEL: `sudo dnf install ./null-scribe-${{ env.VERSION }}.x86_64.rpm` |
+            | `NullScribe-${{ env.VERSION }}-x86_64.AppImage` | Any Linux distro, no install: `chmod +x` it and run |
+            | `null-scribe_${{ env.VERSION }}_x64.tar.gz` | Any Linux distro: unpack and run `null-scribe` |
             | `NullScribe-${{ env.VERSION }}-Setup.exe` | Windows 10 (2004+) / 11 installer, no admin needed |
             | `NullScribe_${{ env.VERSION }}.0_x64.msix` | Microsoft Store submission (upload in Partner Center; the Store signs it) |
 
             The speech model (~140 MB) and the built-in Llama 3.2 3B summary model (~2 GB) download on first launch. Built with Llama.
+
+  # Adds the newer Linux formats to a release that already exists, without replacing its other files.
+  add-linux-extras:
+    name: Add Linux packages to existing release
+    needs: linux
+    if: ${{ inputs.linux_extras_only }}
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux
+          path: new
+      - name: Upload .rpm, AppImage, .tar.gz
+        run: |
+          rm -f new/*.deb   # keep the release's original .deb
+          ls -la new
+          gh release upload "v$VERSION" new/* --clobber
+      - name: Refresh SHA256SUMS
+        run: |
+          mkdir all && cd all
+          gh release download "v$VERSION" --pattern '*' --skip-existing
+          rm -f SHA256SUMS
+          sha256sum * | tee SHA256SUMS
+          gh release upload "v$VERSION" SHA256SUMS --clobber
+      - name: Add the new files to the release notes
+        run: |
+          gh release view "v$VERSION" --json body --jq .body > notes.md
+          grep -q 'AppImage' notes.md || python3 - <<'EOF'
+          import os
+          v = os.environ['VERSION']
+          s = open('notes.md').read()
+          deb = next(l for l in s.splitlines() if l.startswith('| `null-scribe_') and '.deb' in l)
+          add = '\n'.join([
+              f'| `null-scribe-{v}.x86_64.rpm` | Fedora / openSUSE / RHEL: `sudo dnf install ./null-scribe-{v}.x86_64.rpm` |',
+              f'| `NullScribe-{v}-x86_64.AppImage` | Any Linux distro, no install: `chmod +x` it and run |',
+              f'| `null-scribe_{v}_x64.tar.gz` | Any Linux distro: unpack and run `null-scribe` |',
+          ])
+          open('notes.md', 'w').write(s.replace(deb, deb + '\n' + add, 1))
+          EOF
+          gh release edit "v$VERSION" --notes-file notes.md
