@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 5.1.0
 
 - **Summary templates:** Meeting, Lecture / class, Interview, Stand-up, 1:1, and your own templates (add, edit, delete). Pick one before recording, set a default in Settings, or re-write an old summary with another template from the Summary tab.
 - **Rename speakers** from the Transcript tab ("Discord" → "Tom", "You" → your name); the transcript, summary, Markdown and exports all update.

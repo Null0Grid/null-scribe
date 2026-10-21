@@ -1,7 +1,7 @@
 {
   "name": "null-scribe",
   "productName": "Null Scribe",
-  "version": "1.0.0",
+  "version": "5.1.0",
   "description": "Record or import a conversation, transcribe it locally and summarize it with your own Ollama server. Your data. Your grid.",
   "main": "src/main/main.js",
   "author": {
