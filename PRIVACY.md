@@ -42,6 +42,7 @@ If you install Null Scribe from the Microsoft Store, Microsoft handles purchase,
 ## Deleting your data
 
 - Delete any session inside the app (Session → Delete).
+- Settings → Storage can delete recordings' audio automatically after 1 to 180 days, keeping the transcripts and summaries.
 - Uninstalling the Microsoft Store version removes the app's data folder.
 - On Linux, uninstalling leaves your data in `~/.config/Null Scribe`. Delete that folder to remove everything.
 

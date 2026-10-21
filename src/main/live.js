@@ -85,8 +85,8 @@ class LiveTranscriber {
    * getTracks(): current [{ path, speaker }] (apps can join mid-recording).
    * onSegments(newSegments) receives labeled segments; onNotice(text) for status messages.
    */
-  constructor({ getTracks, whisperBin, model, language = 'auto', workDir, onSegments, onNotice, intervalMs = 4000, minChunkSec = 6, maxChunkSec = 25, deps = {} }) {
-    Object.assign(this, { getTracks, whisperBin, model, language, workDir, onSegments, onNotice, intervalMs, minChunkSec, maxChunkSec });
+  constructor({ getTracks, whisperBin, model, language = 'auto', prompt = '', workDir, onSegments, onNotice, intervalMs = 4000, minChunkSec = 6, maxChunkSec = 25, deps = {} }) {
+    Object.assign(this, { getTracks, whisperBin, model, language, prompt, workDir, onSegments, onNotice, intervalMs, minChunkSec, maxChunkSec });
     this.toWav = deps.toWav || toWav;
     this.transcribe = deps.transcribe || transcribe;
     this.pos = new Map(); // track path → frames already handled
@@ -155,6 +155,7 @@ class LiveTranscriber {
         model: this.model,
         wav: wav16,
         language: this.language,
+        prompt: this.prompt,
         workDir: this.workDir,
         signal: final ? undefined : this.controller.signal,
       });

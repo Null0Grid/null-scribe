@@ -10,6 +10,8 @@ const { prepareSummarizer, engineLabel } = require('./engine');
 const { mergeTracks } = require('./speakers');
 const { cleanSegments } = require('./cleanup');
 const { buildDocument } = require('./markdown');
+const { parseWords, whisperPrompt, summaryNote } = require('./glossary');
+const { resolveTemplate } = require('./templates');
 
 const SILENT_DB = -50; // tracks quieter than this are skipped (whisper hallucinates on silence)
 
@@ -23,7 +25,7 @@ const SILENT_DB = -50; // tracks quieter than this are skipped (whisper hallucin
  * The summary comes from the built-in 3B model (llm) or the user's Ollama server, per settings.
  * Every artifact is written into sessionDir. onStage({ stage, progress, message }) reports progress.
  */
-async function runPipeline({ inputPath, tracks, sessionDir, title, createdAt, sourceName, settings, binDir, modelsDir, llm, onStage, signal, deps = {} }) {
+async function runPipeline({ inputPath, tracks, sessionDir, title, createdAt, sourceName, settings, binDir, modelsDir, llm, onStage, signal, templateId, deps = {} }) {
   const stage = (name, progress, message) => onStage?.({ stage: name, progress, message });
   const _toWav = deps.toWav || toWav;
   const _mix = deps.mixToWav || mixToWav;
@@ -35,6 +37,7 @@ async function runPipeline({ inputPath, tracks, sessionDir, title, createdAt, so
 
   fs.mkdirSync(sessionDir, { recursive: true });
   const meeting = Array.isArray(tracks) && tracks.length > 0;
+  const prompt = whisperPrompt(parseWords(settings.customWords));
   const groups = meeting ? groupBySpeaker(tracks) : [{ speaker: null, files: [inputPath] }];
 
   // 1. Convert / mix
@@ -77,6 +80,7 @@ async function runPipeline({ inputPath, tracks, sessionDir, title, createdAt, so
       model,
       wav: g.wav,
       language: settings.language || 'auto',
+      prompt,
       workDir: sessionDir,
       signal,
       onProgress: (p) => stage('transcribe', (i + p) / groups.length, `Transcribing${label} ${Math.round(((i + p) / groups.length) * 100)}%`),
@@ -92,7 +96,8 @@ async function runPipeline({ inputPath, tracks, sessionDir, title, createdAt, so
   stage('transcribe', 1, `Transcribed ${segments.length} segments${droppedEcho ? ` (${droppedEcho} echoed lines removed)` : ''}`);
 
   // 4. Summarize
-  const summary = await summarizeSegments({ segments, settings, modelsDir, llm, signal, stage, prepare: _prepare });
+  const template = resolveTemplate(templateId || settings.summaryTemplate, settings.customTemplates);
+  const summary = await summarizeSegments({ segments, settings, modelsDir, llm, signal, stage, prepare: _prepare, templateId: template.id });
   fs.writeFileSync(path.join(sessionDir, 'summary.md'), summary);
 
   const doc = buildDocument({
@@ -106,7 +111,7 @@ async function runPipeline({ inputPath, tracks, sessionDir, title, createdAt, so
   fs.writeFileSync(path.join(sessionDir, 'document.md'), doc);
   stage('done', 1, 'Done');
 
-  return { durationMs, segments, rawSegments: merged.segments, summary, doc, droppedEcho };
+  return { durationMs, segments, rawSegments: merged.segments, summary, doc, droppedEcho, template: template.id };
 }
 
 function groupBySpeaker(tracks) {
@@ -121,7 +126,8 @@ function groupBySpeaker(tracks) {
 }
 
 /** Summary step on its own; also used by "Re-summarize". */
-async function summarizeSegments({ segments, settings, modelsDir, llm, signal, stage, prepare = prepareSummarizer }) {
+async function summarizeSegments({ segments, settings, modelsDir, llm, signal, stage, prepare = prepareSummarizer, templateId }) {
+  const template = resolveTemplate(templateId || settings.summaryTemplate, settings.customTemplates);
   const label = engineLabel(settings);
   stage('summarize', 0, `Preparing ${label}`);
   const chat = segments.length
@@ -132,6 +138,8 @@ async function summarizeSegments({ segments, settings, modelsDir, llm, signal, s
     chunkChars: Number(settings.chunkChars) || 6000,
     signal,
     chat,
+    format: template.format,
+    glossaryNote: summaryNote(parseWords(settings.customWords)),
     onProgress: (p) => stage('summarize', p, `Summarizing with ${label} ${Math.round(p * 100)}%`),
   });
 }

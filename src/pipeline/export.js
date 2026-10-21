@@ -8,6 +8,7 @@
 const { runFfmpeg } = require('./audio');
 const { formatTimestamp } = require('./chunk');
 const { renderMarkdown, escapeHtml } = require('../renderer/markdown');
+const { roleOf } = require('./speaker-names');
 
 const AUDIO_FORMATS = {
   mp3: { label: 'MP3', ext: 'mp3', note: 'plays everywhere', args: ['-c:a', 'libmp3lame', '-b:a', '192k'] },
@@ -22,6 +23,8 @@ const TRANSCRIPT_FORMATS = {
   txt: { label: 'Plain text', ext: 'txt' },
   pdf: { label: 'PDF', ext: 'pdf' },
   html: { label: 'Web page', ext: 'html' },
+  srt: { label: 'Subtitles (SRT)', ext: 'srt' },
+  vtt: { label: 'Subtitles (WebVTT)', ext: 'vtt' },
 };
 
 async function exportAudio(src, dest, format, { title, ffmpeg, signal } = {}) {
@@ -86,7 +89,7 @@ function buildText({ meta, summary, segments }) {
 function buildHtml({ meta, summary, segments }) {
   const rows = segments
     .map((s) => {
-      const spk = s.speaker ? `<span class="spk ${s.speaker === 'You' ? 'you' : 'app'}">${escapeHtml(s.speaker)}</span>` : '';
+      const spk = s.speaker ? `<span class="spk ${roleOf(s) === 'you' ? 'you' : 'app'}">${escapeHtml(s.speaker)}</span>` : '';
       return `<tr><td class="t">${formatTimestamp(s.start)}</td><td>${spk}${escapeHtml(s.text)}</td></tr>`;
     })
     .join('\n');
@@ -153,4 +156,84 @@ function buildHtml({ meta, summary, segments }) {
 `;
 }
 
-module.exports = { AUDIO_FORMATS, TRANSCRIPT_FORMATS, exportAudio, buildText, buildHtml, markdownToText };
+/* ---------- Subtitles ---------- */
+
+const MIN_CUE_MS = 700; // keep very short segments on screen long enough to read
+const MAX_LINE = 42; // common subtitle line length
+
+/** 00:01:02,345 (SRT) or 00:01:02.345 (WebVTT) */
+function cueTime(ms, sep) {
+  const t = Math.max(0, Math.round(ms));
+  const pad = (n, w = 2) => String(n).padStart(w, '0');
+  return `${pad(Math.floor(t / 3600000))}:${pad(Math.floor((t % 3600000) / 60000))}:${pad(Math.floor((t % 60000) / 1000))}${sep}${pad(t % 1000, 3)}`;
+}
+
+/** Wrap text into lines of at most MAX_LINE characters (at most 2 lines per cue, then a new cue). */
+function wrapLines(text) {
+  const lines = [];
+  let line = '';
+  for (const word of String(text).split(/\s+/).filter(Boolean)) {
+    if (line && (line + ' ' + word).length > MAX_LINE) {
+      lines.push(line);
+      line = word;
+    } else line = line ? `${line} ${word}` : word;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+/**
+ * Turn segments into cues: [{ start, end, speaker, lines }]. Long segments are split into
+ * two-line cues with the time shared out by length; overlaps are trimmed so cues never collide.
+ */
+function buildCues(segments) {
+  const cues = [];
+  for (const s of segments || []) {
+    const lines = wrapLines(s.text);
+    if (!lines.length) continue;
+    const parts = [];
+    for (let i = 0; i < lines.length; i += 2) parts.push(lines.slice(i, i + 2));
+    const start = Number(s.start) || 0;
+    const end = Math.max(Number(s.end) || 0, start + MIN_CUE_MS * parts.length);
+    const totalChars = parts.reduce((n, p) => n + p.join(' ').length, 0) || 1;
+    let t = start;
+    for (const p of parts) {
+      const len = ((end - start) * p.join(' ').length) / totalChars;
+      cues.push({ start: t, end: t + Math.max(MIN_CUE_MS, len), speaker: s.speaker || '', lines: p });
+      t += len;
+    }
+  }
+  cues.sort((a, b) => a.start - b.start);
+  for (let i = 0; i < cues.length - 1; i++) {
+    if (cues[i].end > cues[i + 1].start) cues[i].end = Math.max(cues[i].start + 1, cues[i + 1].start);
+  }
+  return cues;
+}
+
+/** SubRip (.srt): speaker names are written as "Name: " on the first line of each cue. */
+function buildSrt(segments) {
+  return (
+    buildCues(segments)
+      .map((c, i) => {
+        const lines = c.lines.map((l) => l.replace(/</g, '‹').replace(/>/g, '›')); // SRT players treat <…> as tags
+        if (c.speaker) lines[0] = `${c.speaker}: ${lines[0]}`;
+        return `${i + 1}\n${cueTime(c.start, ',')} --> ${cueTime(c.end, ',')}\n${lines.join('\n')}\n`;
+      })
+      .join('\n') || ''
+  );
+}
+
+const vttEscape = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/** WebVTT (.vtt): speakers use voice tags (<v Name>), which players can style or show. */
+function buildVtt(segments, { title } = {}) {
+  const head = `WEBVTT${title ? ` - ${String(title).replace(/[\r\n]+/g, ' ').replace(/-->/g, '→')}` : ''}\n`;
+  const cues = buildCues(segments).map((c) => {
+    const text = c.lines.map(vttEscape).join('\n');
+    const body = c.speaker ? `<v ${vttEscape(c.speaker).replace(/>/g, '')}>${text}` : text;
+    return `${cueTime(c.start, '.')} --> ${cueTime(c.end, '.')}\n${body}\n`;
+  });
+  return [head, ...cues].join('\n');
+}
+
+module.exports = { AUDIO_FORMATS, TRANSCRIPT_FORMATS, exportAudio, buildText, buildHtml, markdownToText, buildSrt, buildVtt, buildCues, cueTime };

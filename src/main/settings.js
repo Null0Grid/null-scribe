@@ -2,6 +2,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const { cleanCustom, listTemplates } = require('../pipeline/templates');
+const { normalizeDays } = require('./retention');
 
 const DEFAULTS = {
   summaryEngine: 'builtin', // 'builtin' (bundled 3B model via llama.cpp) | 'ollama'
@@ -24,6 +26,10 @@ const DEFAULTS = {
   micDevice: '', // '' = system default input
   liveTranscript: true,
   cleanTranscript: true, // remove um/uh, stutters and [laughs]; the verbatim copy is kept too
+  customWords: '', // names/terms to spell right, one per line or comma-separated (whisper prompt + summary)
+  summaryTemplate: 'meeting', // default template for new summaries (templates.js)
+  customTemplates: [], // user's own templates: [{ id, name, instructions }]
+  audioRetentionDays: 0, // delete recordings' audio after N days (0 = never); transcripts and summaries stay
 };
 
 function createSettingsStore(dir) {
@@ -47,6 +53,10 @@ function createSettingsStore(dir) {
     }
     next.chunkChars = Math.min(30000, Math.max(1500, Number(next.chunkChars) || DEFAULTS.chunkChars));
     if (!['builtin', 'ollama'].includes(next.summaryEngine)) next.summaryEngine = DEFAULTS.summaryEngine;
+    next.customWords = String(next.customWords || '').slice(0, 4000);
+    next.customTemplates = cleanCustom(next.customTemplates);
+    if (!listTemplates(next.customTemplates).some((t) => t.id === next.summaryTemplate)) next.summaryTemplate = DEFAULTS.summaryTemplate;
+    next.audioRetentionDays = normalizeDays(next.audioRetentionDays);
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(file, JSON.stringify(next, null, 2));
     cache = next;

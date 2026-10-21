@@ -34,7 +34,7 @@ function parseWhisperJson(json) {
  * Run whisper.cpp on a 16 kHz WAV file. Resolves with segments.
  * onProgress(fraction) is fed from whisper's -pp progress output.
  */
-function transcribe({ bin, model, wav, language = 'auto', threads, workDir, onProgress, signal }) {
+function transcribe({ bin, model, wav, language = 'auto', threads, workDir, prompt = '', onProgress, signal }) {
   return new Promise((resolve, reject) => {
     if (!bin || !fs.existsSync(bin)) {
       return reject(new Error('whisper.cpp binary not found. Run "npm run build:engines" (see README).'));
@@ -42,6 +42,7 @@ function transcribe({ bin, model, wav, language = 'auto', threads, workDir, onPr
     const outBase = path.join(workDir || path.dirname(wav), 'whisper-out');
     const nThreads = String(threads || Math.max(1, Math.min(8, os.cpus().length - 1)));
     const args = ['-m', model, '-f', wav, '-l', language, '-t', nThreads, '-oj', '-of', outBase, '-pp', '-np'];
+    if (prompt) args.push('--prompt', prompt); // custom words: bias recognition toward these spellings
 
     const proc = spawn(bin, args, { windowsHide: true });
     let log = '';

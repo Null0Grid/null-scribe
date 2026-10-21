@@ -220,7 +220,7 @@ input[type=checkbox] { accent-color: var(--cyan); width: 15px; height: 15px; mar
 /* Speaker labels: You in cyan, the app (Discord, Zoom…) in pink */
 .spk { font: 500 10px var(--f-mono); text-transform: uppercase; letter-spacing: .08em; padding: 1px 6px; border-radius: 4px; margin-right: 8px; vertical-align: 1px; }
 .spk.you { background: var(--cyan-dim); color: var(--cyan); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cyan) 30%, transparent); }
-.spk.them { background: var(--pink-dim); color: var(--pink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pink) 30%, transparent); }
+.spk.them, .spk.app { background: var(--pink-dim); color: var(--pink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pink) 30%, transparent); }
 
 /* Processing */
 .process { max-width: 580px; margin: 0 auto; padding: 72px 24px; display: flex; flex-direction: column; gap: 18px; }
@@ -290,6 +290,29 @@ input:focus, select:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px var
 .status.bad { color: var(--red); }
 .status.warn { color: var(--amber); }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.dialog-actions .tpl-delete { margin-right: auto; }
+textarea { background: var(--panel); border: 1px solid var(--line); color: var(--fg); border-radius: 6px; padding: 8px 10px; font: 13px/1.5 var(--f-mono); outline: none; resize: vertical; min-height: 60px; }
+textarea:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px var(--cyan-dim); }
+
+/* Summary templates */
+.tpl-row { margin-top: -4px; }
+.tpl-inline { margin-left: auto; margin-bottom: 6px; flex-direction: row; align-items: center; gap: 8px; font: 12px var(--f-mono); }
+.tpl-inline select { padding: 5px 8px; font-size: 12px; max-width: 220px; }
+.tpl-manage { display: flex; flex-direction: column; gap: 8px; }
+.tpl-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.tpl-list li { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); font-size: 13px; }
+.tpl-list li .tpl-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tpl-list li.empty { color: var(--muted); font-size: 12px; border-style: dashed; background: none; }
+.tpl-manage > .btn { align-self: flex-start; }
+
+/* Speaker renaming (Transcript tab) */
+.speaker-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 16px 32px 0; max-width: 880px; font: 12px var(--f-mono); color: var(--muted); }
+.speaker-bar .spk-chip { display: inline-flex; align-items: center; gap: 6px; background: none; border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; color: var(--fg); font: 12px var(--f-body); cursor: pointer; }
+.speaker-bar .spk-chip:hover { border-color: var(--cyan); }
+.speaker-bar .spk-chip .spk { margin-right: 0; }
+.speaker-bar .spk-chip .pen { color: var(--muted); font-size: 11px; }
+.speaker-bar input { padding: 4px 8px; font-size: 12px; width: 150px; }
+.dl-item:disabled { opacity: .45; cursor: not-allowed; }
 
 /* Toast */
 .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--panel-2); border: 1px solid var(--line); border-left: 3px solid var(--cyan); padding: 10px 16px; border-radius: var(--radius); font-size: 13px; max-width: 70vw; box-shadow: var(--shadow); z-index: 30; }

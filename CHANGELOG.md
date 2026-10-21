@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **Summary templates:** Meeting, Lecture / class, Interview, Stand-up, 1:1, and your own templates (add, edit, delete). Pick one before recording, set a default in Settings, or re-write an old summary with another template from the Summary tab.
+- **Rename speakers** from the Transcript tab ("Discord" → "Tom", "You" → your name); the transcript, summary, Markdown and exports all update.
+- **Custom words:** a list of names and terms passed to whisper.cpp (`--prompt`) and to the summarizer, so they're spelled right.
+- **Subtitles:** `.srt` and `.vtt` downloads.
+- **Audio auto-delete:** delete recordings' audio after 1, 7, 15, 30, 90 or 180 days (Settings → Storage); transcripts and summaries are kept.
+
 ## 1.0.0 — first release
 
 - **Capture:** record from a chosen microphone, import any audio/video file, or **Meeting mode**: record chosen apps (Zoom, Discord, Teams…) while leaving others (Spotify, games) out. PipeWire on Linux, Windows process loopback on Windows 10 2004+.

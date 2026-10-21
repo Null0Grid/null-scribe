@@ -4,6 +4,7 @@ const $ = (id) => document.getElementById(id);
 const api = window.scribe;
 
 const state = {
+  tab: 'summary',
   sessions: [],
   activeId: null,
   active: null,
@@ -106,6 +107,10 @@ function renderSession() {
   $('downloadBtn').disabled = state.busy;
   $('resumBtn').disabled = !segments.length || state.busy;
 
+  fillTemplateSelect($('sessionTemplate'), meta.template || tplUi.defaultId);
+  $('sessionTemplate').disabled = !segments.length || state.busy;
+  renderSpeakerBar();
+
   $('summaryPane').innerHTML = hasSummary
     ? window.renderMarkdown(summary)
     : '<p class="empty">No summary yet.' + (segments.length ? ' Fix the issue above (or switch engine in Settings), then use Re-summarize.' : '') + '</p>';
@@ -127,11 +132,216 @@ function renderTranscript() {
     .map((s) => {
       let text = esc(s.text);
       if (re) text = text.replace(re, (m) => `<mark>${m}</mark>`);
-      const spk = s.speaker ? `<span class="spk ${s.speaker === 'You' ? 'you' : 'them'}">${esc(s.speaker)}</span>` : '';
+      const spk = s.speaker ? `<span class="spk ${roleClass(s)}">${esc(s.speaker)}</span>` : '';
       return `<div class="seg"><span class="t">${fmtTime(s.start)}</span><span>${spk}${text}</span></div>`;
     })
     .join('');
 }
+
+function roleClass(s) {
+  return (s.role || (s.speaker === 'You' ? 'you' : 'app')) === 'you' ? 'you' : 'app';
+}
+
+/* ---------- speaker renaming (Transcript tab) ---------- */
+
+function renderSpeakerBar() {
+  const bar = $('speakerBar');
+  const segs = state.active?.segments || [];
+  const speakers = [];
+  for (const s of segs) if (s.speaker && !speakers.some((x) => x.name === s.speaker)) speakers.push({ name: s.speaker, cls: roleClass(s) });
+  bar.hidden = state.tab !== 'transcript' || !speakers.length;
+  if (bar.hidden) return;
+  const esc = window.escapeHtml;
+  bar.innerHTML =
+    '<span class="mic-label">Speakers</span>' +
+    speakers
+      .map((s) => `<button class="spk-chip" data-speaker="${esc(s.name)}" title="Rename ${esc(s.name)}"><span class="spk ${s.cls}">${esc(s.name)}</span><span class="pen">✎</span></button>`)
+      .join('') +
+    '<span class="fineprint">Click a name to rename it everywhere</span>';
+}
+
+$('speakerBar').addEventListener('click', (e) => {
+  const chip = e.target.closest('.spk-chip');
+  if (!chip || state.busy) return;
+  const from = chip.dataset.speaker;
+  const input = document.createElement('input');
+  input.value = from;
+  input.maxLength = 40;
+  input.setAttribute('aria-label', `New name for ${from}`);
+  chip.replaceWith(input);
+  input.focus();
+  input.select();
+  let done = false;
+  const finish = async (save) => {
+    if (done) return;
+    done = true;
+    const to = input.value.trim();
+    if (!save || !to || to === from) return renderSpeakerBar();
+    try {
+      state.active = await api.renameSpeaker(state.activeId, from, to);
+      renderSession();
+      toast(`Renamed ${from} to ${to}`);
+    } catch (err) {
+      toast(errMsg(err), true);
+      renderSpeakerBar();
+    }
+  };
+  input.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') finish(true);
+    if (ev.key === 'Escape') {
+      ev.stopPropagation();
+      finish(false);
+    }
+  });
+  input.addEventListener('blur', () => finish(true));
+});
+
+/* ---------- summary templates ---------- */
+
+const ADD_OWN = '__add__';
+const tplUi = { list: [], defaultId: 'meeting' };
+
+async function loadTemplates() {
+  try {
+    const r = await api.listTemplates();
+    tplUi.list = r.templates;
+    tplUi.defaultId = r.defaultId;
+  } catch (_) {
+    /* keep what we had */
+  }
+}
+
+function fillTemplateSelect(sel, value) {
+  const esc = window.escapeHtml;
+  const opt = (t) => `<option value="${esc(t.id)}">${esc(t.name)}</option>`;
+  const own = tplUi.list.filter((t) => !t.builtin);
+  sel.innerHTML =
+    tplUi.list.filter((t) => t.builtin).map(opt).join('') +
+    (own.length ? `<optgroup label="Your templates">${own.map(opt).join('')}</optgroup>` : '') +
+    `<option value="${ADD_OWN}">+ Add your own…</option>`;
+  sel.value = tplUi.list.some((t) => t.id === value) ? value : 'meeting';
+  sel.dataset.prev = sel.value;
+}
+
+function captureTemplate() {
+  const v = $('templateSelect').value;
+  return v && v !== ADD_OWN ? v : undefined;
+}
+
+/** A template select changed: "+ Add your own…" opens the editor, then selects the new template. */
+function onTemplatePick(sel, onPicked) {
+  sel.addEventListener('change', () => {
+    if (sel.value !== ADD_OWN) {
+      sel.dataset.prev = sel.value;
+      return onPicked?.(sel.value);
+    }
+    const prev = sel.dataset.prev || 'meeting';
+    sel.value = prev;
+    openTemplateDialog(null, (savedId) => {
+      fillTemplateSelect(sel, savedId);
+      onPicked?.(savedId);
+    });
+  });
+}
+
+onTemplatePick($('templateSelect'));
+onTemplatePick($('defaultTemplateSelect'), () => renderCustomTemplateList());
+onTemplatePick($('sessionTemplate'), (id) => {
+  if (!state.active || id === (state.active.meta.template || tplUi.defaultId)) return;
+  const name = tplUi.list.find((t) => t.id === id)?.name || 'this template';
+  toast(`Re-writing the summary as ${name}…`);
+  resummarize(id);
+});
+
+function renderCustomTemplateList() {
+  const esc = window.escapeHtml;
+  const own = tplUi.list.filter((t) => !t.builtin);
+  $('customTemplateList').innerHTML = own.length
+    ? own
+        .map(
+          (t) =>
+            `<li><span class="tpl-name">${esc(t.name)}</span><button type="button" class="btn btn-ghost btn-sm" data-edit="${esc(t.id)}">Edit</button><button type="button" class="btn btn-ghost btn-sm btn-danger" data-del="${esc(t.id)}">Delete</button></li>`
+        )
+        .join('')
+    : '<li class="empty">None yet. Add one for the kind of conversations you record most.</li>';
+}
+
+async function refreshTemplateSelects(keep = {}) {
+  await loadTemplates();
+  fillTemplateSelect($('templateSelect'), keep.capture ?? $('templateSelect').value);
+  fillTemplateSelect($('defaultTemplateSelect'), keep.def ?? $('defaultTemplateSelect').value);
+  if (state.active) fillTemplateSelect($('sessionTemplate'), state.active.meta.template || tplUi.defaultId);
+  renderCustomTemplateList();
+}
+
+$('addTemplateBtn').addEventListener('click', () => openTemplateDialog(null, () => refreshTemplateSelects()));
+$('customTemplateList').addEventListener('click', async (e) => {
+  const edit = e.target.closest('[data-edit]');
+  const del = e.target.closest('[data-del]');
+  if (edit) {
+    const t = tplUi.list.find((x) => x.id === edit.dataset.edit);
+    if (t) openTemplateDialog(t, () => refreshTemplateSelects());
+  } else if (del) {
+    await deleteTemplate(del.dataset.del);
+  }
+});
+
+async function deleteTemplate(id) {
+  const t = tplUi.list.find((x) => x.id === id);
+  if (!t || !confirm(`Delete the template "${t.name}"? Summaries already written with it are kept.`)) return false;
+  try {
+    await api.deleteTemplate(id);
+    await refreshTemplateSelects({ def: $('defaultTemplateSelect').value === id ? 'meeting' : undefined, capture: $('templateSelect').value === id ? 'meeting' : undefined });
+    toast(`Deleted "${t.name}"`);
+    return true;
+  } catch (err) {
+    toast(errMsg(err), true);
+    return false;
+  }
+}
+
+let tplEditing = null; // { id, onSaved }
+
+function openTemplateDialog(tpl, onSaved) {
+  tplEditing = { id: tpl?.id || null, onSaved };
+  $('templateDialogTitle').textContent = tpl ? 'Edit template' : 'New template';
+  $('tplName').value = tpl?.name || '';
+  $('tplInstructions').value = tpl?.instructions || '';
+  $('tplError').textContent = '';
+  $('tplDeleteBtn').hidden = !tpl;
+  $('templateDialog').showModal();
+  $('tplName').focus();
+}
+
+$('tplSaveBtn').addEventListener('click', async (e) => {
+  e.preventDefault();
+  try {
+    const r = await api.saveTemplate({ id: tplEditing?.id || undefined, name: $('tplName').value, instructions: $('tplInstructions').value });
+    tplUi.list = r.templates;
+    $('templateDialog').close('save');
+    toast(`Saved template "${$('tplName').value.trim()}"`);
+    await tplEditing?.onSaved?.(r.savedId);
+    renderCustomTemplateList();
+  } catch (err) {
+    $('tplError').textContent = errMsg(err);
+  }
+});
+
+$('tplCancelBtn').addEventListener('click', () => $('templateDialog').close('cancel'));
+$('tplDeleteBtn').addEventListener('click', async () => {
+  if (tplEditing?.id && (await deleteTemplate(tplEditing.id))) $('templateDialog').close('deleted');
+});
+
+/* Audio auto-deleted in the background (Settings → Storage): refresh what's on screen. */
+api.onSessionsChanged(async ({ audioDeleted = [] } = {}) => {
+  if (state.activeId && audioDeleted.includes(state.activeId) && !state.busy) {
+    try {
+      state.active = await api.getSession(state.activeId);
+    } catch (_) {
+      /* ignore */
+    }
+  }
+});
 
 /* ---------- tabs ---------- */
 
@@ -139,9 +349,12 @@ document.querySelectorAll('.tab').forEach((tab) =>
   tab.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === tab));
     const isTranscript = tab.dataset.tab === 'transcript';
+    state.tab = tab.dataset.tab;
     $('summaryPane').hidden = isTranscript;
     $('transcriptPane').hidden = !isTranscript;
     $('transcriptFilter').hidden = !isTranscript;
+    $('sessionTplWrap').hidden = isTranscript;
+    renderSpeakerBar();
   })
 );
 $('transcriptFilter').addEventListener('input', renderTranscript);
@@ -176,7 +389,7 @@ api.onProgress(({ id, stage, progress, message }) => {
 });
 
 function process(inputPath, title) {
-  return runCapture(() => api.run(inputPath, title), title);
+  return runCapture(() => api.run(inputPath, title, captureTemplate()), title);
 }
 
 /** Show the processing view while runner() (a pipeline IPC call) works, then open the result. */
@@ -471,10 +684,10 @@ async function stopMeeting() {
   if (meetingUi.micOnly) {
     // Plain mic recording: no speaker labels needed.
     const file = result.tracks[0].path;
-    return runCapture(() => api.run(file, title), title);
+    return runCapture(() => api.run(file, title, captureTemplate()), title);
   }
   const source = result.apps.length ? `Meeting: ${result.apps.join(', ')}` : 'Meeting (mic only)';
-  runCapture(() => api.runTracks(result.tracks, title, source), title || source);
+  runCapture(() => api.runTracks(result.tracks, title, source, captureTemplate()), title || source);
 }
 
 /* ---------- session actions ---------- */
@@ -505,7 +718,10 @@ async function openDriveSheet() {
   const cfg = await api.getSettings();
   $('driveMd').checked = cfg.driveSendMd !== false;
   $('drivePdf').checked = !!cfg.driveSendPdf;
-  $('driveAudio').checked = !!cfg.driveSendAudio;
+  const noAudio = !!state.active?.meta.audioDeletedAt;
+  $('driveAudio').checked = !!cfg.driveSendAudio && !noAudio;
+  $('driveAudio').disabled = noAudio;
+  $('driveAudio').closest('label').title = noAudio ? 'The audio was deleted automatically (Settings → Storage)' : '';
   $('driveAudioFmt').value = cfg.driveAudioFormat || 'mp3';
   const tok = await api.driveTokenStatus();
   const ready = cfg.driveAddress && tok.saved;
@@ -558,7 +774,9 @@ async function openDownloadMenu() {
     '<div class="dl-group">Transcript</div>' +
     exportFormats.transcript.map((f) => item('transcript', f, `.${f.ext}`)).join('') +
     '<div class="dl-sep"></div><div class="dl-group">Audio</div>' +
-    exportFormats.audio.map((f) => item('audio', f, f.note)).join('');
+    (state.active?.meta.audioDeletedAt
+      ? exportFormats.audio.map((f) => item('audio', f, 'auto-deleted').replace('<button', '<button disabled title="The audio was deleted automatically (Settings → Storage)"')).join('')
+      : exportFormats.audio.map((f) => item('audio', f, f.note)).join(''));
   $('downloadMenu').hidden = false;
   $('downloadBtn').setAttribute('aria-expanded', 'true');
   $('downloadMenu').querySelector('.dl-item')?.focus();
@@ -606,8 +824,10 @@ $('copyBtn').addEventListener('click', () =>
   })
 );
 
-$('resumBtn').addEventListener('click', () =>
-  action(async () => {
+$('resumBtn').addEventListener('click', () => resummarize());
+
+function resummarize(templateId) {
+  return action(async () => {
     state.busy = true;
     state.processingId = state.activeId;
     resetStages();
@@ -619,15 +839,15 @@ $('resumBtn').addEventListener('click', () =>
     $('processTitle').textContent = state.active.meta.title;
     show('viewProcess');
     try {
-      state.active = await api.rerunSummary(state.activeId);
+      state.active = await api.rerunSummary(state.activeId, templateId);
       toast('Summary updated');
     } finally {
       state.busy = false;
       state.processingId = null;
       await openSession(state.activeId);
     }
-  })
-);
+  });
+}
 
 $('deleteBtn').addEventListener('click', () =>
   action(async () => {
@@ -676,6 +896,9 @@ async function openSettings() {
   const [cfg, models] = await Promise.all([api.getSettings(), api.whisperModels()]);
   const esc = window.escapeHtml;
   llmModels = models.llm;
+  await loadTemplates();
+  fillTemplateSelect($('defaultTemplateSelect'), tplUi.defaultId);
+  renderCustomTemplateList();
   $('whisperSelect').innerHTML = models.whisper.map((m) => `<option value="${m.id}">${esc(m.label)}</option>`).join('');
   $('builtinSelect').innerHTML = models.llm.map((m) => `<option value="${m.id}">${esc(m.label)}${m.downloaded ? ' ✓' : ''}</option>`).join('');
   for (const [k, v] of Object.entries(cfg)) {
@@ -757,14 +980,18 @@ $('pickFolderBtn').addEventListener('click', async () => {
 $('settingsDialog').addEventListener('close', async () => {
   if ($('settingsDialog').returnValue !== 'save') return;
   const patch = {};
-  for (const k of ['summaryEngine', 'builtinModel', 'ollamaHost', 'ollamaModel', 'whisperModel', 'language', 'notesFolder', 'chunkChars', 'driveAddress', 'driveFolder', 'driveAudioFormat']) {
+  for (const k of ['summaryEngine', 'builtinModel', 'ollamaHost', 'ollamaModel', 'whisperModel', 'language', 'notesFolder', 'chunkChars', 'driveAddress', 'driveFolder', 'driveAudioFormat', 'customWords', 'summaryTemplate']) {
     patch[k] = form.elements[k].value.trim();
   }
+  if (patch.summaryTemplate === ADD_OWN) delete patch.summaryTemplate;
+  patch.audioRetentionDays = Number(form.elements.audioRetentionDays.value) || 0;
   for (const k of ['notesOpenAfter', 'driveSendMd', 'driveSendPdf', 'driveSendAudio']) patch[k] = form.elements[k].checked;
   await api.setSettings(patch);
   const newToken = $('driveToken').value.trim();
   if (newToken) await api.driveSetToken(newToken);
   toast('Settings saved');
+  await loadTemplates();
+  fillTemplateSelect($('templateSelect'), tplUi.defaultId);
   // A new speech model or built-in model may need downloading first.
   await checkSetup();
 });
@@ -797,7 +1024,7 @@ function addLiveSegments(segments) {
   const esc = window.escapeHtml;
   body.innerHTML = liveUi.lines
     .map((s) => {
-      const spk = s.speaker ? `<span class="spk ${s.speaker === 'You' ? 'you' : 'them'}">${esc(s.speaker)}</span>` : '';
+      const spk = s.speaker ? `<span class="spk ${roleClass(s)}">${esc(s.speaker)}</span>` : '';
       return `<div class="live-line"><span class="t">${fmtTime(s.start)}</span><span>${spk}${esc(s.text)}</span></div>`;
     })
     .join('');
@@ -920,6 +1147,8 @@ document.addEventListener('keydown', (e) => {
 
 (async () => {
   await refreshList();
+  await loadTemplates();
+  fillTemplateSelect($('templateSelect'), tplUi.defaultId);
   const cfg = await api.getSettings();
   show('viewCapture');
   const avail = await api.meetingAvailable().catch(() => ({ ok: false }));

@@ -35,6 +35,10 @@
           <button class="mode" data-mode="meeting" role="tab">Meeting</button>
         </div>
         <input id="titleInput" class="title-input" placeholder="Name this conversation (optional)" maxlength="120" />
+        <label class="mic-row tpl-row">
+          <span class="mic-label">Summary</span>
+          <select id="templateSelect" class="tpl-select" title="Which sections the AI summary has"></select>
+        </label>
         <label id="micRow" class="mic-row" hidden>
           <span class="mic-label">Microphone</span>
           <select id="micSelect"><option value="">System default</option></select>
@@ -114,9 +118,14 @@
       <nav class="tabs">
         <button class="tab active" data-tab="summary">Summary</button>
         <button class="tab" data-tab="transcript">Transcript</button>
+        <label id="sessionTplWrap" class="tpl-inline" title="Pick a template to re-write the summary with it">
+          <span>Template</span>
+          <select id="sessionTemplate"></select>
+        </label>
         <input id="transcriptFilter" class="filter" placeholder="Filter transcript…" hidden />
       </nav>
       <article id="summaryPane" class="pane md"></article>
+      <div id="speakerBar" class="speaker-bar" hidden></div>
       <article id="transcriptPane" class="pane transcript" hidden></article>
     </section>
   </main>
@@ -153,6 +162,19 @@
       </fieldset>
 
       <fieldset>
+        <legend>Summary templates</legend>
+        <label>Default template for new recordings
+          <select name="summaryTemplate" id="defaultTemplateSelect"></select>
+        </label>
+        <div class="tpl-manage">
+          <span class="mic-label">Your templates</span>
+          <ul id="customTemplateList" class="tpl-list"></ul>
+          <button type="button" id="addTemplateBtn" class="btn btn-sm">+ Add your own template</button>
+        </div>
+        <p class="fineprint">Built-in: Meeting, Lecture / class, Interview, Stand-up, 1:1. You can switch any recording to another template from its Summary tab.</p>
+      </fieldset>
+
+      <fieldset>
         <legend>Transcription (whisper.cpp)</legend>
         <label>Speech model <select name="whisperModel" id="whisperSelect"></select></label>
         <label>Language
@@ -166,6 +188,26 @@
           </select>
         </label>
         <p class="fineprint">".en" models only understand English. Models download once, on first use.</p>
+        <label>Custom words
+          <textarea name="customWords" rows="3" placeholder="Proxmox, ZimaBoard, NULLGRID, Tom Reyes…" spellcheck="false"></textarea>
+        </label>
+        <p class="fineprint">Names and terms to spell right, separated by commas or new lines. They help the speech model hear them and the summary spell them. Applies to new recordings and re-summaries.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Storage</legend>
+        <label>Delete recordings' audio after
+          <select name="audioRetentionDays">
+            <option value="0">Never</option>
+            <option value="1">1 day</option>
+            <option value="7">7 days</option>
+            <option value="15">15 days</option>
+            <option value="30">30 days</option>
+            <option value="90">90 days</option>
+            <option value="180">180 days</option>
+          </select>
+        </label>
+        <p class="fineprint">Only the audio is deleted. Transcripts, summaries and anything you sent to Notes or Drive stay. Checked when Null Scribe starts and every few hours.</p>
       </fieldset>
 
       <fieldset>
@@ -217,6 +259,25 @@
       <div class="dialog-actions">
         <button value="cancel" class="btn btn-ghost">Cancel</button>
         <button id="saveSettingsBtn" value="save" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="templateDialog" class="dialog lit">
+    <form method="dialog" id="templateForm">
+      <h2 id="templateDialogTitle">New template</h2>
+      <label>Name
+        <input id="tplName" maxlength="60" placeholder="Homelab changes" autocomplete="off" />
+      </label>
+      <label>What should the summary contain?
+        <textarea id="tplInstructions" rows="9" spellcheck="true" placeholder="## Changes&#10;Every homelab change we talked about, with the device name.&#10;&#10;## To buy&#10;Parts or gear someone said to order.&#10;&#10;## Next steps&#10;Checklist of who does what."></textarea>
+      </label>
+      <p class="fineprint">Write the sections you want, as "## Heading" plus a line saying what goes under it, or just describe it in your own words.</p>
+      <div id="tplError" class="status bad"></div>
+      <div class="dialog-actions">
+        <button type="button" id="tplDeleteBtn" class="btn btn-ghost btn-danger tpl-delete" hidden>Delete</button>
+        <button type="button" id="tplCancelBtn" class="btn btn-ghost">Cancel</button>
+        <button id="tplSaveBtn" value="save" class="btn btn-primary">Save template</button>
       </div>
     </form>
   </dialog>

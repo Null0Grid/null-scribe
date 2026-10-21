@@ -33,7 +33,7 @@ contextBridge.exposeInMainWorld('scribe', {
     ipcRenderer.on('live:notice', handler);
     return () => ipcRenderer.removeListener('live:notice', handler);
   },
-  runTracks: (tracks, title, sourceName) => ipcRenderer.invoke('pipeline:run', { tracks, title, sourceName }),
+  runTracks: (tracks, title, sourceName, templateId) => ipcRenderer.invoke('pipeline:run', { tracks, title, sourceName, templateId }),
 
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setSettings: (patch) => ipcRenderer.invoke('settings:set', patch),
@@ -44,8 +44,8 @@ contextBridge.exposeInMainWorld('scribe', {
   pickFolder: () => ipcRenderer.invoke('dialog:pickFolder'),
   saveRecording: (buffer) => ipcRenderer.invoke('recording:save', buffer),
 
-  run: (inputPath, title) => ipcRenderer.invoke('pipeline:run', { inputPath, title }),
-  rerunSummary: (id) => ipcRenderer.invoke('pipeline:resummarize', id),
+  run: (inputPath, title, templateId) => ipcRenderer.invoke('pipeline:run', { inputPath, title, templateId }),
+  rerunSummary: (id, templateId) => ipcRenderer.invoke('pipeline:resummarize', { id, templateId }),
   cancel: () => ipcRenderer.invoke('pipeline:cancel'),
   onProgress: (cb) => {
     const handler = (_e, data) => cb(data);
@@ -57,6 +57,16 @@ contextBridge.exposeInMainWorld('scribe', {
   getSession: (id) => ipcRenderer.invoke('sessions:get', id),
   renameSession: (id, title) => ipcRenderer.invoke('sessions:rename', { id, title }),
   deleteSession: (id) => ipcRenderer.invoke('sessions:delete', id),
+  renameSpeaker: (id, from, to) => ipcRenderer.invoke('sessions:rename-speaker', { id, from, to }),
+  onSessionsChanged: (cb) => {
+    const handler = (_e, data) => cb(data);
+    ipcRenderer.on('sessions:changed', handler);
+    return () => ipcRenderer.removeListener('sessions:changed', handler);
+  },
+
+  listTemplates: () => ipcRenderer.invoke('templates:list'),
+  saveTemplate: (t) => ipcRenderer.invoke('templates:save', t),
+  deleteTemplate: (id) => ipcRenderer.invoke('templates:delete', id),
 
   sendToNotes: (id) => ipcRenderer.invoke('share:notes', id),
   notesVaults: () => ipcRenderer.invoke('notes:vaults'),

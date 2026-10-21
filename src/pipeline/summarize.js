@@ -1,6 +1,7 @@
 'use strict';
 
 const { chunkSegments, segmentsToText } = require('./chunk');
+const { BUILTIN } = require('./templates');
 
 const SYSTEM_PROMPT = [
   'You summarize recorded conversations for the person who recorded them.',
@@ -18,24 +19,8 @@ const SPEAKER_NOTE = [
   'use real names only if someone says them.',
 ].join(' ');
 
-const FINAL_FORMAT =`Write the summary in Markdown with exactly these sections:
-
-## Overview
-2–4 sentences: what the conversation was about and how it ended.
-
-## Key points
-Bullet list of the important points, each with its [mm:ss] timestamp when known.
-
-## Decisions
-Bullet list of anything agreed or decided.
-
-## Action items
-Checklist lines like "- [ ] Who — what (by when, if said)". Use "Unassigned" when no owner was named.
-
-## Open questions
-Bullet list of unresolved questions or follow-ups.
-
-Write "None" under any heading that has nothing. Output only the Markdown, no preamble.`;
+// Default sections (the Meeting template); other templates live in templates.js.
+const FINAL_FORMAT = BUILTIN[0].format;
 
 function trimHost(host) {
   return String(host || 'http://127.0.0.1:11434').replace(/\/+$/, '');
@@ -85,15 +70,15 @@ function cleanReply(text) {
  * Summarize transcript segments. Short transcripts go to the model in one pass;
  * long ones are summarized chunk by chunk (map) and the notes merged (reduce).
  */
-async function summarize({ segments, host, model, chunkChars = 6000, onProgress, signal, chat = ollamaChat }) {
+async function summarize({ segments, host, model, chunkChars = 6000, onProgress, signal, chat = ollamaChat, format = FINAL_FORMAT, glossaryNote = '' }) {
   if (!segments.length) return '## Overview\nNo speech was detected in this recording.';
-  const system = segments.some((s) => s.speaker) ? `${SYSTEM_PROMPT} ${SPEAKER_NOTE}` : SYSTEM_PROMPT;
+  const system = [SYSTEM_PROMPT, segments.some((s) => s.speaker) ? SPEAKER_NOTE : '', glossaryNote].filter(Boolean).join(' ');
   const ask = (content) => chat({ host, model, signal, messages: [{ role: 'system', content: system }, { role: 'user', content }] });
 
   const chunks = chunkSegments(segments, chunkChars);
   if (chunks.length === 1) {
     onProgress?.(0.1);
-    const out = await ask(`Transcript:\n\n${segmentsToText(chunks[0])}\n\n${FINAL_FORMAT}`);
+    const out = await ask(`Transcript:\n\n${segmentsToText(chunks[0])}\n\n${format}`);
     onProgress?.(1);
     return cleanReply(out);
   }
@@ -113,10 +98,10 @@ async function summarize({ segments, host, model, chunkChars = 6000, onProgress,
 
   const final = await ask(
     `Below are notes taken from each part of one conversation, in order.\n\n${notes.join('\n\n')}\n\n` +
-      `Merge them into a single summary of the whole conversation, removing duplicates.\n\n${FINAL_FORMAT}`
+      `Merge them into a single summary of the whole conversation, removing duplicates.\n\n${format}`
   );
   onProgress?.(1);
   return cleanReply(final);
 }
 
-module.exports = { summarize, ollamaChat, listOllamaModels, cleanReply, SYSTEM_PROMPT };
+module.exports = { summarize, ollamaChat, listOllamaModels, cleanReply, SYSTEM_PROMPT, FINAL_FORMAT };

@@ -24,6 +24,11 @@ record / import ──► ffmpeg (16 kHz mono WAV) ──► whisper.cpp ──�
 - **Send to Notes / Send to Drive** puts the session straight into Null Notes or onto your Null Drive server (see *Null Grid integration*).
 - **Open in Claude** copies the summary and transcript to the clipboard and opens claude.ai in your browser, so you can paste it into a new chat and ask questions about it.
 - **Re-summarize** reruns only the summary, for example after switching engine or model. The saved transcript is reused.
+- **Summary templates:** Meeting, Lecture / class, Interview, Stand-up and 1:1, plus your own (Settings → Summary templates, or *+ Add your own…* in any template picker). Pick one before recording, or switch an old recording to another template from its Summary tab.
+- **Rename speakers:** on the Transcript tab, click a label (`Discord`, `You`) to rename it everywhere: transcript, summary and exports.
+- **Custom words:** names and terms to spell right (Settings → Transcription). They're given to whisper.cpp as its initial prompt and to the summarizer.
+- **Subtitles:** download the transcript as `.srt` or `.vtt` (WebVTT with speaker voice tags).
+- **Audio auto-delete:** Settings → Storage deletes recordings' audio after 1, 7, 15, 30, 90 or 180 days (default: never). Transcripts and summaries stay.
 - **History** keeps every session on disk in the app's data folder.
 
 ## Null Grid integration

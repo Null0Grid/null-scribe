@@ -18,6 +18,10 @@ const { modelPath } = require('../pipeline/models');
 const exporter = require('../pipeline/export');
 const notes = require('../integrations/notes');
 const drive = require('../integrations/drive');
+const { renameSpeaker } = require('../pipeline/speaker-names');
+const { listTemplates, resolveTemplate, cleanCustom } = require('../pipeline/templates');
+const { parseWords, whisperPrompt } = require('../pipeline/glossary');
+const retention = require('./retention');
 
 let meeting = null; // { handle, dir, startedAt } while Meeting mode is recording
 const { buildDocument, claudeClipboardText, defaultTitle, slugify } = require('../pipeline/markdown');
@@ -115,6 +119,7 @@ function startLive(handle, dir) {
     whisperBin: bin,
     model,
     language: cfg.language || 'auto',
+    prompt: whisperPrompt(parseWords(cfg.customWords)),
     workDir: path.join(dir, 'live'),
     onSegments: (segments) => send('live:segments', segments),
     onNotice: (text) => send('live:notice', text),
@@ -145,7 +150,12 @@ function registerIpc() {
   });
 
   ipcMain.handle('settings:get', () => settings.get());
-  ipcMain.handle('settings:set', (_e, patch) => settings.set(patch));
+  ipcMain.handle('settings:set', (_e, patch) => {
+    const before = settings.get().audioRetentionDays;
+    const next = settings.set(patch);
+    if (next.audioRetentionDays !== before) runRetention();
+    return next;
+  });
   ipcMain.handle('models:list', () => ({
     whisper: Object.entries(WHISPER_MODELS).map(([id, m]) => ({ id, label: m.label })),
     llm: Object.entries(LLM_MODELS).map(([id, m]) => ({
@@ -228,7 +238,7 @@ function registerIpc() {
     return true;
   });
 
-  ipcMain.handle('pipeline:run', async (_e, { inputPath, tracks, sourceName, title }) => {
+  ipcMain.handle('pipeline:run', async (_e, { inputPath, tracks, sourceName, title, templateId }) => {
     if (current) throw new Error('A recording is already being processed.');
     const isMeeting = Array.isArray(tracks) && tracks.length > 0;
     if (isMeeting) {
@@ -256,10 +266,11 @@ function registerIpc() {
         binDir: binDir(),
         modelsDir: modelsDir(),
         llm,
+        templateId,
         signal: controller.signal,
         onStage: (s) => send('pipeline:progress', { id: meta.id, ...s }),
       });
-      sessions.update(meta.id, { status: 'done', durationMs: result.durationMs });
+      sessions.update(meta.id, { status: 'done', durationMs: result.durationMs, template: result.template });
       if (isMeeting) cleanupRecording(path.dirname(tracks[0].path), true);
       else cleanupRecording(inputPath);
       return sessionPayload(meta.id);
@@ -273,16 +284,20 @@ function registerIpc() {
   });
 
   // Re-run only the summary step (e.g. after switching Ollama model). Reuses the saved transcript.
-  ipcMain.handle('pipeline:resummarize', async (_e, id) => {
+  ipcMain.handle('pipeline:resummarize', async (_e, arg) => {
+    const { id, templateId } = typeof arg === 'object' && arg ? arg : { id: arg };
     if (current) throw new Error('Something is already being processed.');
     const data = sessions.get(id);
+    const cfg = settings.get();
+    const template = resolveTemplate(templateId || data.meta.template || cfg.summaryTemplate, cfg.customTemplates);
     if (!data.segments.length) throw new Error('This session has no transcript to summarize.');
     const controller = new AbortController();
     current = { id, controller };
     try {
       const summary = await summarizeSegments({
         segments: data.segments,
-        settings: settings.get(),
+        settings: cfg,
+        templateId: template.id,
         modelsDir: modelsDir(),
         llm,
         signal: controller.signal,
@@ -292,7 +307,7 @@ function registerIpc() {
       fs.writeFileSync(path.join(dir, 'summary.md'), summary);
       const doc = buildDocument({ ...data.meta, sourceName: data.meta.source, summary, segments: data.segments });
       fs.writeFileSync(path.join(dir, 'document.md'), doc);
-      sessions.update(id, { status: 'done', error: undefined });
+      sessions.update(id, { status: 'done', error: undefined, template: template.id });
       send('pipeline:progress', { id, stage: 'done', progress: 1, message: 'Done' });
       return sessionPayload(id);
     } catch (err) {
@@ -324,6 +339,67 @@ function registerIpc() {
     if (current?.id === id) throw new Error('Cancel processing before deleting.');
     sessions.remove(id);
     return true;
+  });
+
+  // Rename a speaker ("Discord" → "Tom") in the transcript, the verbatim copy and the summary.
+  ipcMain.handle('sessions:rename-speaker', (_e, { id, from, to }) => {
+    if (current?.id === id) throw new Error('Wait until processing finishes.');
+    const data = sessions.get(id);
+    const dir = sessions.dirOf(id);
+    const rawFile = path.join(dir, 'transcript-raw.json');
+    let rawSegments = null;
+    try {
+      rawSegments = JSON.parse(fs.readFileSync(rawFile, 'utf8'));
+    } catch (_) {
+      /* older sessions have no verbatim copy */
+    }
+    const r = renameSpeaker({ segments: data.segments, rawSegments, summary: data.summary, from, to });
+    fs.writeFileSync(path.join(dir, 'transcript.json'), JSON.stringify(r.segments, null, 2));
+    if (rawSegments) fs.writeFileSync(rawFile, JSON.stringify(r.rawSegments, null, 2));
+    if (data.summary) fs.writeFileSync(path.join(dir, 'summary.md'), r.summary);
+    if (data.summary || data.document) {
+      const doc = buildDocument({ ...data.meta, sourceName: data.meta.source, summary: r.summary || '', segments: r.segments });
+      fs.writeFileSync(path.join(dir, 'document.md'), doc);
+    }
+    const names = { ...(data.meta.speakerNames || {}) };
+    const original = Object.keys(names).find((k) => names[k] === from) || from;
+    names[original] = r.name;
+    sessions.update(id, { speakerNames: names });
+    return sessionPayload(id);
+  });
+
+  // ---- Summary templates: built-ins + the user's own ----
+  ipcMain.handle('templates:list', () => {
+    const cfg = settings.get();
+    return { templates: listTemplates(cfg.customTemplates), defaultId: cfg.summaryTemplate };
+  });
+  ipcMain.handle('templates:save', (_e, { id, name, instructions }) => {
+    const cfg = settings.get();
+    const list = cleanCustom(cfg.customTemplates);
+    const n = String(name || '').trim();
+    const ins = String(instructions || '').trim();
+    if (!n) throw new Error('Give the template a name.');
+    if (!ins) throw new Error('Write what the summary should contain.');
+    if (listTemplates(list).some((t) => t.name.toLowerCase() === n.toLowerCase() && t.id !== id)) throw new Error(`There's already a template called "${n}".`);
+    const existing = list.find((t) => t.id === id);
+    let savedId = id;
+    if (existing) Object.assign(existing, { name: n, instructions: ins });
+    else {
+      if (list.length >= 50) throw new Error('You can keep up to 50 of your own templates.');
+      savedId = `custom-${Date.now().toString(36)}`;
+      list.push({ id: savedId, name: n, instructions: ins });
+    }
+    settings.set({ customTemplates: list });
+    return { templates: listTemplates(settings.get().customTemplates), savedId };
+  });
+  ipcMain.handle('templates:delete', (_e, id) => {
+    const cfg = settings.get();
+    const list = cleanCustom(cfg.customTemplates).filter((t) => t.id !== id);
+    const patch = { customTemplates: list };
+    if (cfg.summaryTemplate === id) patch.summaryTemplate = 'meeting';
+    settings.set(patch);
+    const next = settings.get();
+    return { templates: listTemplates(next.customTemplates), defaultId: next.summaryTemplate };
   });
 
   // ---- Null Notes: write a note (with a Null Notes id) into the vault, then open it ----
@@ -371,7 +447,7 @@ function registerIpc() {
       const f = exporter.AUDIO_FORMATS[audioFormat] || exporter.AUDIO_FORMATS.mp3;
       const dir = sessions.dirOf(id);
       const src = ['master.flac', 'audio.wav'].map((n) => path.join(dir, n)).find((p) => fs.existsSync(p));
-      if (!src) throw new Error('This session has no audio saved.');
+      if (!src) throw new Error(noAudioMessage(data.meta));
       const tmp = path.join(dir, `.upload.${f.ext}`);
       try {
         await exporter.exportAudio(src, tmp, audioFormat in exporter.AUDIO_FORMATS ? audioFormat : 'mp3', { title: data.meta.title });
@@ -421,7 +497,7 @@ function registerIpc() {
     const dir = sessions.dirOf(id);
     // Prefer the lossless master; older sessions only have the 16 kHz transcription copy.
     const src = ['master.flac', 'audio.wav'].map((n) => path.join(dir, n)).find((p) => fs.existsSync(p));
-    if (!src) throw new Error('This session has no audio saved.');
+    if (!src) throw new Error(noAudioMessage(data.meta));
     const dest = await askSavePath(data.meta, f.ext, `${f.label} audio`);
     if (!dest) return null;
     await exporter.exportAudio(src, dest, format, { title: data.meta.title });
@@ -445,6 +521,10 @@ function registerIpc() {
       fs.writeFileSync(dest, exporter.buildHtml(doc));
     } else if (format === 'pdf') {
       fs.writeFileSync(dest, await htmlToPdf(exporter.buildHtml(doc), sessions.dirOf(id)));
+    } else if (format === 'srt') {
+      fs.writeFileSync(dest, exporter.buildSrt(doc.segments));
+    } else if (format === 'vtt') {
+      fs.writeFileSync(dest, exporter.buildVtt(doc.segments, { title: data.meta.title }));
     }
     return dest;
   });
@@ -453,6 +533,23 @@ function registerIpc() {
     clipboard.writeText(String(text ?? ''));
     return true;
   });
+}
+
+function noAudioMessage(meta) {
+  if (meta.audioDeletedAt) {
+    return `The audio was deleted automatically on ${new Date(meta.audioDeletedAt).toLocaleDateString()} (Settings → Storage). The transcript and summary are still here.`;
+  }
+  return 'This session has no audio saved.';
+}
+
+/* Auto-delete old audio (Settings → Storage). Runs at startup, every 6 hours, and when the setting changes. */
+function runRetention() {
+  try {
+    const removed = retention.pruneAudio(sessions, settings.get().audioRetentionDays, { busyId: current?.id });
+    if (removed.length) send('sessions:changed', { audioDeleted: removed.map((r) => r.id) });
+  } catch (err) {
+    console.error('Audio cleanup failed:', err.message);
+  }
 }
 
 /* Drive token: encrypted with the OS keychain (DPAPI on Windows, libsecret/kwallet on Linux).
@@ -532,6 +629,8 @@ app.whenReady().then(() => {
 
   registerIpc();
   createWindow();
+  runRetention();
+  setInterval(runRetention, 6 * 60 * 60 * 1000).unref?.();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
