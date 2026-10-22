@@ -190,6 +190,7 @@ jobs:
       - name: Flatpak tools + Electron runtime
         timeout-minutes: 15
         run: |
+          exec > >(tee -a "$RUNNER_TEMP/ci.log") 2>&1
           sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update && sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends flatpak flatpak-builder appstream desktop-file-utils
           # Ubuntu 24.04 blocks unprivileged user namespaces by default; flatpak-builder's bubblewrap needs them.
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
@@ -198,11 +199,13 @@ jobs:
             org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08 org.electronjs.Electron2.BaseApp//24.08
       - name: Check AppStream metadata
         run: |
+          exec > >(tee -a "$RUNNER_TEMP/ci.log") 2>&1
           appstreamcli validate --no-net --explain packaging/linux/$APP_ID.metainfo.xml | tee validate.log || true
           if grep -E '^E:' validate.log; then echo "::error title=AppStream::metainfo has errors"; exit 1; fi
           desktop-file-validate packaging/linux/$APP_ID.desktop 2>/dev/null || true
       - name: Build the .flatpak bundle
         run: |
+          exec > >(tee -a "$RUNNER_TEMP/ci.log") 2>&1
           node scripts/render-packaging.js flatpak-local "$(ls linux/*.tar.gz)" fp
           flatpak-builder --user --force-clean --disable-rofiles-fuse --repo=fp-repo fp-build fp/$APP_ID.yml
           flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
@@ -210,6 +213,7 @@ jobs:
           ls -la *.flatpak
       - name: Install test
         run: |
+          exec > >(tee -a "$RUNNER_TEMP/ci.log") 2>&1
           flatpak install --user -y --noninteractive "null-scribe_${VERSION}_${{ matrix.farch }}.flatpak"
           flatpak info --user $APP_ID
           flatpak info --user --show-permissions $APP_ID
@@ -223,6 +227,10 @@ jobs:
             /app/null-scribe/resources/bin/llama-server --version 2>&1 | tail -n 2
             /app/null-scribe/resources/app.asar.unpacked/node_modules/ffmpeg-static/ffmpeg -hide_banner -version | head -1'
           ls ~/.local/share/flatpak/exports/share/applications | grep $APP_ID
+      - name: Show the error
+        if: failure()
+        run: |
+          [ -f "$RUNNER_TEMP/ci.log" ] && tail -n 60 "$RUNNER_TEMP/ci.log" | sed -e 's/%/%25/g' -e 's/^/::warning title=log::/' || true
       - uses: actions/upload-artifact@v4
         with:
           name: flatpak-${{ matrix.arch }}
@@ -248,6 +256,7 @@ jobs:
           path: linux
       - name: Build the .snap
         run: |
+          exec > >(tee -a "$RUNNER_TEMP/ci.log") 2>&1
           sudo snap install snapcraft --classic
           node scripts/render-packaging.js snap "$(ls linux/*.tar.gz)" "$VERSION" snapproj
           cd snapproj
@@ -256,6 +265,7 @@ jobs:
           cd .. && ls -la *.snap
       - name: Install test
         run: |
+          exec > >(tee -a "$RUNNER_TEMP/ci.log") 2>&1
           sudo snap install --dangerous "null-scribe_${VERSION}_${{ matrix.sarch }}.snap"
           snap info --verbose null-scribe | head -20
           snap connections null-scribe
@@ -265,6 +275,10 @@ jobs:
             "$SNAP/null-scribe/resources/bin/llama-server" --version 2>&1 | tail -n 2
             "$SNAP/null-scribe/resources/bin/whisper-cli" --help >/dev/null 2>&1 || test $? -le 1'
           sudo snap remove null-scribe
+      - name: Show the error
+        if: failure()
+        run: |
+          [ -f "$RUNNER_TEMP/ci.log" ] && tail -n 60 "$RUNNER_TEMP/ci.log" | sed -e 's/%/%25/g' -e 's/^/::warning title=log::/' || true
       - uses: actions/upload-artifact@v4
         with:
           name: snap-${{ matrix.arch }}
@@ -288,6 +302,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
+          exec > >(tee -a "$RUNNER_TEMP/ci.log") 2>&1
           # The PKGBUILD and Flathub manifest must match the bytes on the release, not this run's rebuild.
           for f in linux/*.tar.gz; do
             n=$(basename "$f")
@@ -297,6 +312,7 @@ jobs:
           done
       - name: makepkg test (Arch Linux, x86_64)
         run: |
+          exec > >(tee -a "$RUNNER_TEMP/ci.log") 2>&1
           node scripts/render-packaging.js aur-local "$VERSION" "$(ls linux/*_x64.tar.gz)" aur-test
           docker run --rm -v "$PWD/aur-test:/build" archlinux:latest bash -euc '
             pacman -Syu --noconfirm --needed base-devel >/dev/null
@@ -312,6 +328,7 @@ jobs:
             pacman -Qi null-scribe-bin'
       - name: Render the release PKGBUILD, .SRCINFO and Flathub manifest
         run: |
+          exec > >(tee -a "$RUNNER_TEMP/ci.log") 2>&1
           X64=$(sha256sum linux/*_x64.tar.gz | cut -d' ' -f1)
           ARM=$(sha256sum linux/*_arm64.tar.gz | cut -d' ' -f1)
           ICON=$(sha256sum build/icon.png | cut -d' ' -f1)
@@ -324,6 +341,10 @@ jobs:
             cd /home/builder && su builder -c "makepkg --printsrcinfo" > /out/null-scribe-bin.SRCINFO'
           node scripts/render-packaging.js flathub "$VERSION" "$X64" "$ARM" "out/$APP_ID.flathub.yml"
           cat out/null-scribe-bin.SRCINFO
+      - name: Show the error
+        if: failure()
+        run: |
+          [ -f "$RUNNER_TEMP/ci.log" ] && tail -n 60 "$RUNNER_TEMP/ci.log" | sed -e 's/%/%25/g' -e 's/^/::warning title=log::/' || true
       - uses: actions/upload-artifact@v4
         with:
           name: aur-flathub
