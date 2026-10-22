@@ -576,6 +576,22 @@ test('html export is standalone and escapes content', () => {
   assert.doesNotMatch(html, /<script|https?:\/\/(?!www\.w3)/); // no scripts, no external resources
 });
 
+/** Codec, duration and title of an audio file, parsed from `ffmpeg -i` (which prints them and exits 1). */
+function probeWithFfmpeg(file) {
+  let text = '';
+  try {
+    execFileSync('ffmpeg', ['-hide_banner', '-i', file], { stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (err) {
+    text = String(err.stderr || '');
+  }
+  const d = /Duration: (\d+):(\d+):([\d.]+)/.exec(text);
+  return {
+    codec: /Stream #\S+.*?Audio: ([a-z0-9_]+)/.exec(text)?.[1],
+    durationSec: d ? Number(d[1]) * 3600 + Number(d[2]) * 60 + Number(d[3]) : NaN,
+    title: /^\s+title\s+:\s*(.+)$/im.exec(text)?.[1]?.trim(),
+  };
+}
+
 test('audio export produces all five formats with the right codecs', { skip: !hasFfmpeg }, async () => {
   const dir = tmp();
   const src = path.join(dir, 'master.flac');
@@ -584,11 +600,11 @@ test('audio export produces all five formats with the right codecs', { skip: !ha
   for (const [fmt, codec] of Object.entries(expected)) {
     const out = path.join(dir, `out.${exporter.AUDIO_FORMATS[fmt].ext}`);
     await exporter.exportAudio(src, out, fmt, { title: 'Budget Review', ffmpeg: 'ffmpeg' });
-    const probe = JSON.parse(execFileSync('ffprobe', ['-v', 'quiet', '-print_format', 'json', '-show_streams', '-show_format', out]).toString());
-    assert.strictEqual(probe.streams[0].codec_name, codec, fmt);
-    assert.ok(Math.abs(Number(probe.format.duration) - 3) < 0.15, `${fmt} duration ${probe.format.duration}`);
-    const title = probe.format.tags?.title || probe.format.tags?.TITLE || probe.streams[0].tags?.title || probe.streams[0].tags?.TITLE;
-    if (fmt !== 'wav') assert.strictEqual(title, 'Budget Review', `${fmt} title tag`);
+    // Read the file back with ffmpeg itself (ffprobe isn't in every ffmpeg build, e.g. ffmpeg-static).
+    const info = probeWithFfmpeg(out);
+    assert.strictEqual(info.codec, codec, fmt);
+    assert.ok(Math.abs(info.durationSec - 3) < 0.15, `${fmt} duration ${info.durationSec}`);
+    if (fmt !== 'wav') assert.strictEqual(info.title, 'Budget Review', `${fmt} title tag`);
   }
 });
 
