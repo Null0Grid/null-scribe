@@ -111,14 +111,22 @@ Grab the latest build from [Releases](https://github.com/Null0Grid/null-scribe/r
 
 | File | For |
 |---|---|
-| `null-scribe_<version>_amd64.deb` | Debian / Ubuntu: `sudo apt install ./null-scribe_<version>_amd64.deb` |
-| `null-scribe-<version>.x86_64.rpm` | Fedora / openSUSE / RHEL: `sudo dnf install ./null-scribe-<version>.x86_64.rpm` |
-| `NullScribe-<version>-x86_64.AppImage` | Any Linux distro, no install: `chmod +x NullScribe-*.AppImage` and run it (needs FUSE 2, e.g. `libfuse2`) |
-| `null-scribe_<version>_x64.tar.gz` | Any Linux distro: unpack and run `./null-scribe` |
+| `null-scribe_<version>_amd64.deb` · `_arm64.deb` | Debian / Ubuntu / Raspberry Pi OS: `sudo apt install ./null-scribe_<version>_amd64.deb` |
+| `null-scribe-<version>.x86_64.rpm` · `.aarch64.rpm` | Fedora / openSUSE / RHEL: `sudo dnf install ./null-scribe-<version>.x86_64.rpm` |
+| `NullScribe-<version>-x86_64.AppImage` · `-aarch64.AppImage` | Any Linux distro, no install: `chmod +x NullScribe-*.AppImage` and run it (needs FUSE 2, e.g. `libfuse2`) |
+| `null-scribe_<version>_x64.tar.gz` · `_arm64.tar.gz` | Any Linux distro: unpack and run `./null-scribe` |
+| `null-scribe_<version>_x86_64.flatpak` · `_aarch64.flatpak` | Flatpak: `flatpak install --user ./null-scribe_<version>_x86_64.flatpak` (pulls the runtime from Flathub) |
+| `null-scribe_<version>_amd64.snap` · `_arm64.snap` | Snap: `sudo snap install --dangerous ./null-scribe_<version>_amd64.snap`, then `sudo snap connect null-scribe:audio-record` |
+| `null-scribe-bin.PKGBUILD` · `.SRCINFO` | Arch / Manjaro: save as `PKGBUILD` in an empty folder and run `makepkg -si` |
+| `dev.nullgrid.scribe.flathub.yml` | Flathub manifest for that release (see [docs/STORES.md](docs/STORES.md)) |
 | `NullScribe-<version>-Setup.exe` | Windows 10 (2004+) / 11, per-user install, no admin |
 | `NullScribe_<version>.0_x64.msix` | Microsoft Store submission |
 
-Needs a 64-bit CPU with AVX2 (Intel 2013+ / AMD 2015+). The models (~2.2 GB) download on first launch.
+x64 = Intel / AMD; arm64 = aarch64 (Raspberry Pi 4/5 with a 64-bit OS, ARM laptops).
+
+**Flatpak and Snap limits.** Both run sandboxed. Recording from the microphone, importing files, Notes and Drive work. **Meeting mode** (recording chosen apps) needs the PipeWire tools on the host and isn't available inside Flatpak or Snap; use the `.deb`, `.rpm`, AppImage, `.tar.gz` or AUR package for it. The Flatpak can write Null Notes vaults in `~/Documents`; for a vault elsewhere run `flatpak override --user --filesystem=/path/to/vault dev.nullgrid.scribe`.
+
+Needs a 64-bit CPU: on x64, one with AVX2 (Intel 2013+ / AMD 2015+); on ARM64, any ARMv8 (a Raspberry Pi 4 works but is slow; 8 GB RAM recommended). The models (~2.2 GB) download on first launch.
 
 ## Build releases
 
@@ -129,7 +137,9 @@ Releases are built by GitHub Actions (`.github/workflows/release.yml`): **Action
 3. **Windows:** builds the engines and the Meeting-mode helper with MSVC (static runtime), the NSIS installer, and the **Store MSIX** with MakePri + MakeAppx (`packaging/msix/build-msix.ps1`);
 4. publishes a GitHub Release with every package and `SHA256SUMS`, creating the `v<version>` tag.
 
-Tick **linux_extras_only** to add the `.rpm`, AppImage and `.tar.gz` to a release that already exists, without replacing its other files.
+Tick **extras_only** to add new files (for example new formats) to a release that already exists. Files the release already has are never replaced; `SHA256SUMS` and the notes are updated.
+
+Publishing to Flathub, the Snap Store and the AUR is described in [docs/STORES.md](docs/STORES.md).
 
 ### Microsoft Store
 
