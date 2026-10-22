@@ -1,12 +1,13 @@
 # Changelog
 
-## Unreleased (packaging)
+## 5.1.1
 
+- **New app icon**: the new Null Grid family logo on the window, taskbar, installer, Microsoft Store tiles and Linux packages.
 - **ARM64** builds of every Linux package: `.deb`, `.rpm`, AppImage, `.tar.gz` (Raspberry Pi 4/5, ARM laptops).
 - **Flatpak** bundles (`.flatpak`, x86_64 and aarch64) and a Flathub manifest with AppStream metadata.
 - **Snap** packages (`.snap`, amd64 and arm64).
 - **AUR** package files for `null-scribe-bin` (`PKGBUILD` + `.SRCINFO`).
-- Added to the 5.1.0 release; every later release builds them automatically.
+- These formats were also added to the 5.1.0 release; from 5.1.1 every release builds them.
 
 ## 5.1.0
 

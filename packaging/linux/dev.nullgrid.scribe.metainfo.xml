@@ -69,6 +69,11 @@
     <color type="primary" scheme_preference="dark">#0a0a0f</color>
   </branding>
   <releases>
+    <release version="5.1.1" date="2026-10-22">
+      <description>
+        <p>New app icon. Now also available for ARM64, as a Flatpak, as a Snap and on the AUR.</p>
+      </description>
+    </release>
     <release version="5.1.0" date="2026-10-21">
       <description>
         <p>Summary templates (meeting, lecture, interview, stand-up, 1:1 or your own), speaker renaming, custom words, subtitle export (.srt and .vtt) and optional automatic deletion of old audio.</p>
