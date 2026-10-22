@@ -26,7 +26,12 @@ jobs:
       - name: Syntax check
         run: for f in $(git ls-files 'src/*.js' 'scripts/*.js' 'test/*.js'); do node --check "$f"; done
       - name: Unit + integration tests
-        run: npm test
+        run: set -o pipefail; npm test 2>&1 | tee test.log
+      - name: Show failing tests
+        if: failure()
+        run: |
+          # Only 10 annotations per step show up, so send the failures as one annotation.
+          [ -f test.log ] && echo "::warning title=tests::$(grep -A30 -E '^ *not ok' test.log | head -120 | sed -e 's/%/%25/g' | awk '{printf "%s%%0A", $0}')" || true
 
   windows-helper:
     name: Meeting-mode helper builds with MSVC

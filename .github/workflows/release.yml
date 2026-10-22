@@ -69,7 +69,12 @@ jobs:
       - run: npm ci
       - name: ffmpeg for the audio tests (the copy the app bundles; no apt mirror needed)
         run: echo "$(dirname "$(node -p "require('ffmpeg-static')")")" >> "$GITHUB_PATH"
-      - run: npm test
+      - run: set -o pipefail; npm test 2>&1 | tee test.log
+      - name: Show failing tests
+        if: failure()
+        run: |
+          # Only 10 annotations per step show up, so send the failures as one annotation.
+          [ -f test.log ] && echo "::warning title=tests::$(grep -A30 -E '^ *not ok' test.log | head -120 | sed -e 's/%/%25/g' | awk '{printf "%s%%0A", $0}')" || true
 
   linux:
     name: Linux ${{ matrix.arch }} (.deb, .rpm, AppImage, .tar.gz)
