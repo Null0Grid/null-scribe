@@ -21,8 +21,8 @@ jobs:
           cache: npm
       - name: Install
         run: npm ci
-      - name: ffmpeg (used by the audio tests)
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - name: ffmpeg for the audio tests (the copy the app bundles; no apt mirror needed)
+        run: echo "$(dirname "$(node -p "require('ffmpeg-static')")")" >> "$GITHUB_PATH"
       - name: Syntax check
         run: for f in $(git ls-files 'src/*.js' 'scripts/*.js' 'test/*.js'); do node --check "$f"; done
       - name: Unit + integration tests
