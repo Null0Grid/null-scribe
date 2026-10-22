@@ -1,12 +1,16 @@
 name: Release
 
-# Builds every package and publishes a GitHub Release:
-#   null-scribe_<v>_amd64.deb        Debian / Ubuntu
-#   null-scribe-<v>.x86_64.rpm       Fedora / openSUSE / RHEL
-#   NullScribe-<v>-x86_64.AppImage   any distro, no install
-#   null-scribe_<v>_x64.tar.gz       any distro, unpack and run
-#   NullScribe-<v>-Setup.exe         Windows installer (per-user, no admin)
-#   NullScribe_<v>.0_x64.msix        Microsoft Store package (unsigned: the Store signs it)
+# Builds every package and publishes a GitHub Release (x64 = x86_64, arm64 = aarch64):
+#   null-scribe_<v>_amd64.deb / _arm64.deb               Debian / Ubuntu / Raspberry Pi OS
+#   null-scribe-<v>.x86_64.rpm / .aarch64.rpm             Fedora / openSUSE / RHEL
+#   NullScribe-<v>-x86_64.AppImage / -aarch64.AppImage    any distro, no install
+#   null-scribe_<v>_x64.tar.gz / _arm64.tar.gz            any distro, unpack and run
+#   null-scribe_<v>_x86_64.flatpak / _aarch64.flatpak     Flatpak bundle (flatpak install --user <file>)
+#   null-scribe_<v>_amd64.snap / _arm64.snap              Snap (snap install --dangerous <file>)
+#   null-scribe-bin.PKGBUILD + null-scribe-bin.SRCINFO    AUR package files (Arch / Manjaro)
+#   dev.nullgrid.scribe.flathub.yml                       Flathub manifest for this release
+#   NullScribe-<v>-Setup.exe                              Windows installer (per-user, no admin)
+#   NullScribe_<v>.0_x64.msix                             Microsoft Store package (unsigned: the Store signs it)
 #   SHA256SUMS
 #
 # Run it from Actions → Release → Run workflow, entering the version (e.g. 1.0.0).
@@ -17,6 +21,10 @@ name: Release
 #   MSIX_IDENTITY_NAME            e.g. NULLGRID.NullScribe
 #   MSIX_PUBLISHER                e.g. CN=8685350B-5C4C-4422-9CDF-8AEB87F50B2F
 #   MSIX_PUBLISHER_DISPLAY_NAME   e.g. NULLGRID
+#
+# Optional secrets (store publishing, see docs/STORES.md):
+#   SNAPCRAFT_STORE_CREDENTIALS   uploads the .snap files to the Snap Store (stable channel)
+#   AUR_SSH_PRIVATE_KEY           pushes the PKGBUILD to aur.archlinux.org/null-scribe-bin
 
 on:
   workflow_dispatch:
@@ -29,8 +37,8 @@ on:
         description: Publish as a draft release
         type: boolean
         default: false
-      linux_extras_only:
-        description: Only add the .rpm, AppImage and .tar.gz to the existing v<version> release (leaves its other files alone)
+      extras_only:
+        description: Only add files the existing v<version> release doesn't have yet (skips Windows, never replaces a file)
         type: boolean
         default: false
 
@@ -41,6 +49,7 @@ env:
   VERSION: ${{ inputs.version }}
   WHISPER_TAG: v1.9.5
   LLAMA_TAG: b11757
+  APP_ID: dev.nullgrid.scribe
 
 jobs:
   check:
@@ -62,10 +71,17 @@ jobs:
       - run: npm test
 
   linux:
-    name: Linux packages (.deb, .rpm, AppImage, .tar.gz)
+    name: Linux ${{ matrix.arch }} (.deb, .rpm, AppImage, .tar.gz)
     needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x64, runner: ubuntu-22.04, deb: amd64, rpm: x86_64, appimage: x86_64 }
+          - { arch: arm64, runner: ubuntu-22.04-arm, deb: arm64, rpm: aarch64, appimage: aarch64 }
     # Older Ubuntu on purpose: the binaries then run on every newer distro (glibc is backward compatible).
-    runs-on: ubuntu-22.04
+    # ARM64 is built natively on GitHub's ARM runners (the speech/summary engines are native code).
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -73,13 +89,16 @@ jobs:
           node-version: 22
           cache: npm
       - name: Build tools
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake g++ git rpm
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake g++ git rpm ruby ruby-dev
+          # electron-builder's bundled fpm (for the .rpm) is x86_64-only; use the system one everywhere.
+          sudo gem install --no-document fpm
       - name: Restore engines
         id: engines
         uses: actions/cache/restore@v4
         with:
           path: bin/linux
-          key: engines-linux-${{ env.WHISPER_TAG }}-${{ env.LLAMA_TAG }}-${{ hashFiles('scripts/build-engines.sh') }}
+          key: engines-linux-${{ matrix.arch }}-${{ env.WHISPER_TAG }}-${{ env.LLAMA_TAG }}-${{ hashFiles('scripts/build-engines.sh') }}
       - name: Build engines (whisper.cpp + llama.cpp)
         if: steps.engines.outputs.cache-hit != 'true'
         run: bash scripts/build-engines.sh
@@ -89,26 +108,37 @@ jobs:
         with:
           path: bin/linux
           key: ${{ steps.engines.outputs.cache-primary-key }}
+      - run: file bin/linux/*
       - run: npm ci
       - name: Build packages
-        run: npx electron-builder --linux deb rpm AppImage tar.gz --x64 --publish never
-      - name: Install test
+        env:
+          USE_SYSTEM_FPM: 'true'
+        run: >
+          npx electron-builder --linux deb rpm AppImage tar.gz --${{ matrix.arch }} --publish never
+          -c.rpm.artifactName='null-scribe-${version}.${{ matrix.rpm }}.rpm'
+          -c.appImage.artifactName='NullScribe-${version}-${{ matrix.appimage }}.AppImage'
+      - name: Install test (.deb on Ubuntu)
         run: |
           DEB=$(ls dist/*.deb)
           dpkg-deb --info "$DEB" | sed -n '1,40p'
+          dpkg-deb --field "$DEB" Architecture | grep -qx '${{ matrix.deb }}'
           sudo apt-get install -y "./$DEB"
           test -x "/opt/Null Scribe/null-scribe"
-          test -x "/opt/Null Scribe/resources/bin/whisper-cli"
-          test -x "/opt/Null Scribe/resources/bin/llama-server"
+          for b in whisper-cli llama-server; do
+            f="/opt/Null Scribe/resources/bin/$b"
+            test -x "$f"
+            file "$f"
+            if ldd "$f" | grep "not found"; then echo "::error title=$b::missing libraries"; exit 1; fi
+          done
           "/opt/Null Scribe/resources/bin/llama-server" --version 2>&1 | tail -n 2 || true
-          ldd "/opt/Null Scribe/resources/bin/whisper-cli" | grep -q "not found" && { echo "whisper-cli has missing libraries"; exit 1; } || true
-          ldd "/opt/Null Scribe/resources/bin/llama-server" | grep -q "not found" && { echo "llama-server has missing libraries"; exit 1; } || true
+          file "/opt/Null Scribe/resources/app.asar.unpacked/node_modules/ffmpeg-static/ffmpeg"
           ls /usr/share/applications | grep -i scribe
           sudo apt-get remove -y null-scribe
       - name: Install test (.rpm on Fedora)
         run: |
           RPM=$(ls dist/*.rpm)
           rpm -qp --requires --recommends "$RPM"
+          [ "$(rpm -qp --qf '%{ARCH}' "$RPM")" = '${{ matrix.rpm }}' ]
           docker run --rm -v "$PWD/dist:/dist:ro" fedora:41 bash -euc '
             dnf install -y -q /dist/*.rpm
             test -x "/opt/Null Scribe/null-scribe"
@@ -125,12 +155,13 @@ jobs:
           test -x squashfs-root/null-scribe
           test -x squashfs-root/resources/bin/whisper-cli
           test -x squashfs-root/resources/bin/llama-server
+          file squashfs-root/null-scribe
           rm -rf squashfs-root
           tar tzf *.tar.gz | grep -q 'resources/bin/llama-server$'
           ls -la *.deb *.rpm *.AppImage *.tar.gz
       - uses: actions/upload-artifact@v4
         with:
-          name: linux
+          name: linux-${{ matrix.arch }}
           path: |
             dist/*.deb
             dist/*.rpm
@@ -138,10 +169,168 @@ jobs:
             dist/*.tar.gz
           if-no-files-found: error
 
+  flatpak:
+    name: Flatpak ${{ matrix.farch }}
+    needs: linux
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x64, farch: x86_64, runner: ubuntu-24.04 }
+          - { arch: arm64, farch: aarch64, runner: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}
+          path: linux
+      - name: Flatpak tools + Electron runtime
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends flatpak flatpak-builder appstream desktop-file-utils
+          # Ubuntu 24.04 blocks unprivileged user namespaces by default; flatpak-builder's bubblewrap needs them.
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y --noninteractive flathub \
+            org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08 org.electronjs.Electron2.BaseApp//24.08
+      - name: Check AppStream metadata
+        run: |
+          appstreamcli validate --no-net --explain packaging/linux/$APP_ID.metainfo.xml | tee validate.log || true
+          if grep -E '^E:' validate.log; then echo "::error title=AppStream::metainfo has errors"; exit 1; fi
+          desktop-file-validate packaging/linux/$APP_ID.desktop 2>/dev/null || true
+      - name: Build the .flatpak bundle
+        run: |
+          node scripts/render-packaging.js flatpak-local "$(ls linux/*.tar.gz)" fp
+          flatpak-builder --user --force-clean --disable-rofiles-fuse --repo=fp-repo fp-build fp/$APP_ID.yml
+          flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
+            fp-repo "null-scribe_${VERSION}_${{ matrix.farch }}.flatpak" $APP_ID
+          ls -la *.flatpak
+      - name: Install test
+        run: |
+          flatpak install --user -y --noninteractive "null-scribe_${VERSION}_${{ matrix.farch }}.flatpak"
+          flatpak info --user $APP_ID
+          flatpak info --user --show-permissions $APP_ID
+          flatpak run --user --command=sh $APP_ID -c '
+            set -e
+            test -x /app/bin/null-scribe
+            test -x /app/null-scribe/null-scribe
+            for b in whisper-cli llama-server; do
+              if ldd /app/null-scribe/resources/bin/$b | grep "not found"; then echo "$b has missing libraries"; exit 1; fi
+            done
+            /app/null-scribe/resources/bin/llama-server --version 2>&1 | tail -n 2
+            /app/null-scribe/resources/app.asar.unpacked/node_modules/ffmpeg-static/ffmpeg -hide_banner -version | head -1'
+          ls ~/.local/share/flatpak/exports/share/applications | grep $APP_ID
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flatpak-${{ matrix.arch }}
+          path: '*.flatpak'
+          if-no-files-found: error
+
+  snap:
+    name: Snap ${{ matrix.sarch }}
+    needs: linux
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: x64, sarch: amd64, runner: ubuntu-22.04 }
+          - { arch: arm64, sarch: arm64, runner: ubuntu-22.04-arm }
+    # core22 snaps build on Ubuntu 22.04 itself (snapcraft --destructive-mode), no LXD needed.
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: linux-${{ matrix.arch }}
+          path: linux
+      - name: Build the .snap
+        run: |
+          sudo snap install snapcraft --classic
+          node scripts/render-packaging.js snap "$(ls linux/*.tar.gz)" "$VERSION" snapproj
+          cd snapproj
+          sudo snapcraft --destructive-mode --verbosity=brief
+          mv ./*.snap "../null-scribe_${VERSION}_${{ matrix.sarch }}.snap"
+          cd .. && ls -la *.snap
+      - name: Install test
+        run: |
+          sudo snap install --dangerous "null-scribe_${VERSION}_${{ matrix.sarch }}.snap"
+          snap info --verbose null-scribe | head -20
+          snap connections null-scribe
+          snap run --shell null-scribe -c '
+            set -e
+            test -x "$SNAP/null-scribe/null-scribe"
+            "$SNAP/null-scribe/resources/bin/llama-server" --version 2>&1 | tail -n 2
+            "$SNAP/null-scribe/resources/bin/whisper-cli" --help >/dev/null 2>&1 || test $? -le 1'
+          sudo snap remove null-scribe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: snap-${{ matrix.arch }}
+          path: '*.snap'
+          if-no-files-found: error
+
+  aur:
+    name: AUR package + Flathub manifest
+    needs: linux
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: linux-*
+          path: linux
+          merge-multiple: true
+      - name: Use the release's own tarballs where they already exist (extras mode)
+        if: ${{ inputs.extras_only }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          # The PKGBUILD and Flathub manifest must match the bytes on the release, not this run's rebuild.
+          for f in linux/*.tar.gz; do
+            n=$(basename "$f")
+            if gh release view "v$VERSION" --json assets --jq '.assets[].name' | grep -qxF "$n"; then
+              gh release download "v$VERSION" --pattern "$n" --dir linux --clobber && echo "using released $n"
+            fi
+          done
+      - name: makepkg test (Arch Linux, x86_64)
+        run: |
+          node scripts/render-packaging.js aur-local "$VERSION" "$(ls linux/*_x64.tar.gz)" aur-test
+          docker run --rm -v "$PWD/aur-test:/build" archlinux:latest bash -euc '
+            pacman -Syu --noconfirm --needed base-devel >/dev/null
+            useradd -m builder && echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder
+            cp -r /build /home/builder/pkg && chown -R builder /home/builder/pkg
+            cd /home/builder/pkg && su builder -c "makepkg -si --noconfirm"
+            test -x /usr/bin/null-scribe
+            test -f /usr/share/applications/dev.nullgrid.scribe.desktop
+            for b in whisper-cli llama-server; do
+              if ldd /opt/null-scribe/resources/bin/$b | grep "not found"; then echo "$b has missing libraries"; exit 1; fi
+            done
+            /opt/null-scribe/resources/bin/llama-server --version 2>&1 | tail -n 2
+            pacman -Qi null-scribe-bin'
+      - name: Render the release PKGBUILD, .SRCINFO and Flathub manifest
+        run: |
+          X64=$(sha256sum linux/*_x64.tar.gz | cut -d' ' -f1)
+          ARM=$(sha256sum linux/*_arm64.tar.gz | cut -d' ' -f1)
+          ICON=$(sha256sum build/icon.png | cut -d' ' -f1)
+          LIC=$(sha256sum LICENSE | cut -d' ' -f1)
+          mkdir -p out
+          node scripts/render-packaging.js aur "$VERSION" "$X64" "$ARM" "$ICON" "$LIC" out/null-scribe-bin.PKGBUILD
+          docker run --rm -v "$PWD/out:/out" archlinux:latest bash -euc '
+            pacman -Sy --noconfirm --needed base-devel >/dev/null
+            useradd -m builder && cp /out/null-scribe-bin.PKGBUILD /home/builder/PKGBUILD && chown builder /home/builder/PKGBUILD
+            cd /home/builder && su builder -c "makepkg --printsrcinfo" > /out/null-scribe-bin.SRCINFO'
+          node scripts/render-packaging.js flathub "$VERSION" "$X64" "$ARM" "out/$APP_ID.flathub.yml"
+          cat out/null-scribe-bin.SRCINFO
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aur-flathub
+          path: out/*
+          if-no-files-found: error
+
   windows:
     name: Windows installer + Store MSIX
     needs: check
-    if: ${{ !inputs.linux_extras_only }}
+    if: ${{ !inputs.extras_only }}
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
@@ -215,8 +404,8 @@ jobs:
 
   publish:
     name: Publish GitHub Release
-    needs: [linux, windows]
-    if: ${{ !inputs.linux_extras_only }}
+    needs: [linux, flatpak, snap, aur, windows]
+    if: ${{ !inputs.extras_only }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/download-artifact@v4
@@ -241,20 +430,24 @@ jobs:
 
             | File | For |
             |---|---|
-            | `null-scribe_${{ env.VERSION }}_amd64.deb` | Debian / Ubuntu: `sudo apt install ./null-scribe_${{ env.VERSION }}_amd64.deb` |
-            | `null-scribe-${{ env.VERSION }}.x86_64.rpm` | Fedora / openSUSE / RHEL: `sudo dnf install ./null-scribe-${{ env.VERSION }}.x86_64.rpm` |
-            | `NullScribe-${{ env.VERSION }}-x86_64.AppImage` | Any Linux distro, no install: `chmod +x` it and run |
-            | `null-scribe_${{ env.VERSION }}_x64.tar.gz` | Any Linux distro: unpack and run `null-scribe` |
+            | `null-scribe_${{ env.VERSION }}_amd64.deb` · `_arm64.deb` | Debian / Ubuntu / Raspberry Pi OS: `sudo apt install ./null-scribe_${{ env.VERSION }}_amd64.deb` |
+            | `null-scribe-${{ env.VERSION }}.x86_64.rpm` · `.aarch64.rpm` | Fedora / openSUSE / RHEL: `sudo dnf install ./null-scribe-${{ env.VERSION }}.x86_64.rpm` |
+            | `NullScribe-${{ env.VERSION }}-x86_64.AppImage` · `-aarch64.AppImage` | Any Linux distro, no install: `chmod +x` it and run |
+            | `null-scribe_${{ env.VERSION }}_x64.tar.gz` · `_arm64.tar.gz` | Any Linux distro: unpack and run `null-scribe` |
+            | `null-scribe_${{ env.VERSION }}_x86_64.flatpak` · `_aarch64.flatpak` | Flatpak: `flatpak install --user ./null-scribe_${{ env.VERSION }}_x86_64.flatpak` |
+            | `null-scribe_${{ env.VERSION }}_amd64.snap` · `_arm64.snap` | Snap: `sudo snap install --dangerous ./null-scribe_${{ env.VERSION }}_amd64.snap` |
+            | `null-scribe-bin.PKGBUILD` · `.SRCINFO` | Arch / Manjaro (AUR package files) |
+            | `dev.nullgrid.scribe.flathub.yml` | Flathub manifest for this release |
             | `NullScribe-${{ env.VERSION }}-Setup.exe` | Windows 10 (2004+) / 11 installer, no admin needed |
             | `NullScribe_${{ env.VERSION }}.0_x64.msix` | Microsoft Store submission (upload in Partner Center; the Store signs it) |
 
-            The speech model (~140 MB) and the built-in Llama 3.2 3B summary model (~2 GB) download on first launch. Built with Llama.
+            x64 = Intel / AMD, arm64 = aarch64 (Raspberry Pi 4/5, ARM laptops). The speech model (~140 MB) and the built-in Llama 3.2 3B summary model (~2 GB) download on first launch. Built with Llama.
 
-  # Adds the newer Linux formats to a release that already exists, without replacing its other files.
-  add-linux-extras:
-    name: Add Linux packages to existing release
-    needs: linux
-    if: ${{ inputs.linux_extras_only }}
+  # Adds files a release doesn't have yet (e.g. new formats) without touching the ones it has.
+  add-extras:
+    name: Add new files to existing release
+    needs: [linux, flatpak, snap, aur]
+    if: ${{ inputs.extras_only }}
     runs-on: ubuntu-24.04
     env:
       GH_TOKEN: ${{ github.token }}
@@ -262,33 +455,84 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: linux
           path: new
-      - name: Upload .rpm, AppImage, .tar.gz
+          merge-multiple: true
+      - name: Upload only the files the release doesn't have
         run: |
-          rm -f new/*.deb   # keep the release's original .deb
+          gh release view "v$VERSION" --json assets --jq '.assets[].name' > existing.txt
+          cat existing.txt
+          for f in new/*; do
+            n=$(basename "$f")
+            if grep -qxF "$n" existing.txt; then echo "keep existing $n"; rm "$f"; fi
+          done
           ls -la new
-          gh release upload "v$VERSION" new/* --clobber
+          if [ -n "$(ls new)" ]; then gh release upload "v$VERSION" new/*; fi
       - name: Refresh SHA256SUMS
         run: |
           mkdir all && cd all
-          gh release download "v$VERSION" --pattern '*' --skip-existing
+          gh release download "v$VERSION" --pattern '*'
           rm -f SHA256SUMS
           sha256sum * | tee SHA256SUMS
           gh release upload "v$VERSION" SHA256SUMS --clobber
       - name: Add the new files to the release notes
         run: |
           gh release view "v$VERSION" --json body --jq .body > notes.md
-          grep -q 'AppImage' notes.md || python3 - <<'EOF'
+          python3 - <<'EOF'
           import os
           v = os.environ['VERSION']
           s = open('notes.md').read()
-          deb = next(l for l in s.splitlines() if l.startswith('| `null-scribe_') and '.deb' in l)
-          add = '\n'.join([
-              f'| `null-scribe-{v}.x86_64.rpm` | Fedora / openSUSE / RHEL: `sudo dnf install ./null-scribe-{v}.x86_64.rpm` |',
-              f'| `NullScribe-{v}-x86_64.AppImage` | Any Linux distro, no install: `chmod +x` it and run |',
-              f'| `null-scribe_{v}_x64.tar.gz` | Any Linux distro: unpack and run `null-scribe` |',
-          ])
-          open('notes.md', 'w').write(s.replace(deb, deb + '\n' + add, 1))
+          rows = [
+              ('_arm64.deb', f'| `null-scribe_{v}_arm64.deb` | Debian / Ubuntu / Raspberry Pi OS on ARM64 |'),
+              ('.aarch64.rpm', f'| `null-scribe-{v}.aarch64.rpm` | Fedora / openSUSE on ARM64 |'),
+              ('-aarch64.AppImage', f'| `NullScribe-{v}-aarch64.AppImage` | Any Linux distro on ARM64, no install |'),
+              ('_arm64.tar.gz', f'| `null-scribe_{v}_arm64.tar.gz` | Any Linux distro on ARM64: unpack and run `null-scribe` |'),
+              ('.flatpak', f'| `null-scribe_{v}_x86_64.flatpak` · `_aarch64.flatpak` | Flatpak: `flatpak install --user ./null-scribe_{v}_x86_64.flatpak` |'),
+              ('.snap', f'| `null-scribe_{v}_amd64.snap` · `_arm64.snap` | Snap: `sudo snap install --dangerous ./null-scribe_{v}_amd64.snap` |'),
+              ('null-scribe-bin.PKGBUILD', '| `null-scribe-bin.PKGBUILD` · `.SRCINFO` | Arch / Manjaro (AUR package files) |'),
+              ('flathub.yml', '| `dev.nullgrid.scribe.flathub.yml` | Flathub manifest for this release |'),
+          ]
+          lines = s.splitlines()
+          last = max(i for i, l in enumerate(lines) if l.startswith('| `'))
+          add = [r for key, r in rows if key not in s]
+          lines[last + 1:last + 1] = add
+          open('notes.md', 'w').write('\n'.join(lines) + '\n')
+          print('\n'.join(add) or 'notes already list everything')
           EOF
           gh release edit "v$VERSION" --notes-file notes.md
+
+  # Optional store uploads; each runs only when its secret is set (see docs/STORES.md).
+  stores:
+    name: Snap Store + AUR (optional)
+    needs: [snap, aur]
+    if: ${{ !inputs.draft }}
+    runs-on: ubuntu-24.04
+    env:
+      SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+      AUR_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+    steps:
+      - name: Nothing to publish
+        if: env.SNAPCRAFT_STORE_CREDENTIALS == '' && env.AUR_KEY == ''
+        run: echo "No store secrets set; the files are on the GitHub release only."
+      - uses: actions/download-artifact@v4
+        if: env.SNAPCRAFT_STORE_CREDENTIALS != '' || env.AUR_KEY != ''
+        with:
+          path: out
+          merge-multiple: true
+      - name: Upload to the Snap Store (stable)
+        if: env.SNAPCRAFT_STORE_CREDENTIALS != ''
+        run: |
+          sudo snap install snapcraft --classic
+          for f in out/*.snap; do snapcraft upload --release=stable "$f"; done
+      - name: Push to the AUR
+        if: env.AUR_KEY != ''
+        run: |
+          mkdir -p ~/.ssh && echo "$AUR_KEY" > ~/.ssh/aur && chmod 600 ~/.ssh/aur
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/aur"
+          git clone ssh://aur@aur.archlinux.org/null-scribe-bin.git aur
+          cp out/null-scribe-bin.PKGBUILD aur/PKGBUILD
+          cp out/null-scribe-bin.SRCINFO aur/.SRCINFO
+          cd aur
+          git config user.name "NULLGRID" && git config user.email "volosteele55@proton.me"
+          git add PKGBUILD .SRCINFO
+          git diff --cached --quiet || { git commit -m "Update to $VERSION" && git push; }
