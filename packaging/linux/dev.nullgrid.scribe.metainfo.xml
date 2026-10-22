@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AppStream metadata: used by Flathub, GNOME Software, KDE Discover and the Snap/AUR listings. -->
+<component type="desktop-application">
+  <id>dev.nullgrid.scribe</id>
+  <name>Null Scribe</name>
+  <summary>Transcribe conversations and get AI summaries on your device</summary>
+  <developer id="dev.nullgrid">
+    <name>NULLGRID</name>
+  </developer>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-proprietary</project_license>
+  <description>
+    <p>
+      Null Scribe records or imports conversations, transcribes them on your own computer and writes an AI summary
+      with key points, decisions, action items and open questions. No account, no cloud, no subscription.
+    </p>
+    <ul>
+      <li>Record from any microphone, or import an audio or video file</li>
+      <li>Meeting mode records only the apps you choose, such as Zoom or Discord, and leaves music out</li>
+      <li>Speech-to-text with whisper.cpp and summaries with a built-in Llama 3.2 3B model, all offline</li>
+      <li>Summary templates for meetings, lectures, interviews, stand-ups and 1:1s, or your own</li>
+      <li>Rename speakers, add custom words, and export subtitles, PDF, Markdown or audio</li>
+      <li>Send results to Null Notes or Null Drive</li>
+    </ul>
+    <p>The speech and summary models (about 2.2 GB) download once on first launch. Built with Llama.</p>
+  </description>
+  <launchable type="desktop-id">dev.nullgrid.scribe.desktop</launchable>
+  <url type="homepage">https://github.com/Null0Grid/null-scribe</url>
+  <url type="bugtracker">https://github.com/Null0Grid/null-scribe/issues</url>
+  <url type="vcs-browser">https://github.com/Null0Grid/null-scribe</url>
+  <categories>
+    <category>Office</category>
+    <category>AudioVideo</category>
+  </categories>
+  <keywords>
+    <keyword>transcription</keyword>
+    <keyword>meeting notes</keyword>
+    <keyword>speech to text</keyword>
+    <keyword>summary</keyword>
+    <keyword>whisper</keyword>
+  </keywords>
+  <screenshots>
+    <screenshot type="default">
+      <caption>AI summary with key points, decisions and action items</caption>
+      <image>https://raw.githubusercontent.com/Null0Grid/null-scribe/main/docs/screenshots/summary.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Timestamped transcript with speakers labelled by app</caption>
+      <image>https://raw.githubusercontent.com/Null0Grid/null-scribe/main/docs/screenshots/transcript.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Meeting mode records only the apps you pick</caption>
+      <image>https://raw.githubusercontent.com/Null0Grid/null-scribe/main/docs/screenshots/meeting.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Record from a microphone or import a file</caption>
+      <image>https://raw.githubusercontent.com/Null0Grid/null-scribe/main/docs/screenshots/record.png</image>
+    </screenshot>
+  </screenshots>
+  <requires>
+    <memory>8192</memory>
+  </requires>
+  <recommends>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </recommends>
+  <content_rating type="oars-1.1"/>
+  <branding>
+    <color type="primary" scheme_preference="dark">#0a0a0f</color>
+  </branding>
+  <releases>
+    <release version="5.1.0" date="2026-10-21">
+      <description>
+        <p>Summary templates (meeting, lecture, interview, stand-up, 1:1 or your own), speaker renaming, custom words, subtitle export (.srt and .vtt) and optional automatic deletion of old audio.</p>
+      </description>
+    </release>
+    <release version="1.0.0" date="2026-10-20">
+      <description>
+        <p>First release.</p>
+      </description>
+    </release>
+  </releases>
+</component>

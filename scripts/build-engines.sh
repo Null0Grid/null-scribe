@@ -70,8 +70,13 @@ fi
 JOBS="$(nproc 2>/dev/null || sysctl -n hw.ncpu)"
 # Static builds (no .so files to ship). GGML_NATIVE=OFF so the binary isn't tied to the build machine;
 # AVX2/FMA/F16C on as the baseline (every Intel since 2013 Haswell, every AMD since 2015), otherwise
-# ggml falls back to plain SSE and transcription/summaries get several times slower.
-COMMON=(-DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=OFF -DGGML_AVX=ON -DGGML_AVX2=ON -DGGML_FMA=ON -DGGML_F16C=ON)
+# ggml falls back to plain SSE and transcription/summaries get several times slower. ARM64 uses the ARMv8-A baseline.
+COMMON=(-DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DGGML_NATIVE=OFF)
+case "$(uname -m)" in
+  x86_64|amd64) COMMON+=(-DGGML_AVX=ON -DGGML_AVX2=ON -DGGML_FMA=ON -DGGML_F16C=ON) ;;
+  # ARM64: generic ARMv8-A with NEON, so it runs on a Raspberry Pi 4 as well as newer ARM laptops.
+  aarch64|arm64) ;;
+esac
 
 build() { # name repo tag target cmake-extra...
   local name="$1" repo="$2" tag="$3" target="$4"; shift 4

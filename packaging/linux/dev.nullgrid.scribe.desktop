@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Null Scribe
+GenericName=Transcription and AI summaries
+Comment=Record or import conversations, transcribe them on your device and get an AI summary
+Exec=null-scribe %U
+Icon=dev.nullgrid.scribe
+Terminal=false
+Categories=Office;AudioVideo;Audio;
+Keywords=transcription;transcribe;meeting;notes;summary;speech;whisper;recorder;
+StartupWMClass=Null Scribe
+StartupNotify=true

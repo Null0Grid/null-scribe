@@ -1,0 +1,59 @@
+# Rendered by scripts/render-packaging.js (it fills in @VERSION@ and unpacks the app into app/).
+# Built in CI with `snapcraft --destructive-mode` on Ubuntu 22.04 (amd64 and arm64).
+name: null-scribe
+title: Null Scribe
+base: core22
+version: '@VERSION@'
+summary: Transcribe conversations and get AI summaries on your device
+description: |
+  Null Scribe records or imports conversations, transcribes them on your own computer and writes
+  an AI summary with key points, decisions, action items and open questions. No account, no cloud.
+
+  Speech-to-text with whisper.cpp and summaries with a built-in Llama 3.2 3B model, all offline.
+  The models (about 2.2 GB) download once on first launch. Built with Llama.
+
+  Microphone access: run `sudo snap connect null-scribe:audio-record` once if recording stays silent.
+license: Proprietary
+website: https://github.com/Null0Grid/null-scribe
+issues: https://github.com/Null0Grid/null-scribe/issues
+icon: snap/gui/null-scribe.png
+grade: stable
+confinement: strict
+
+apps:
+  null-scribe:
+    command: null-scribe/null-scribe --no-sandbox
+    desktop: snap/gui/null-scribe.desktop
+    extensions: [gnome]
+    environment:
+      # Electron keeps its data under ~/snap/null-scribe/current/.config
+      TMPDIR: $XDG_RUNTIME_DIR
+    plugs:
+      - desktop
+      - desktop-legacy
+      - wayland
+      - x11
+      - opengl
+      - network
+      - home
+      - audio-playback
+      - audio-record
+      - password-manager-service
+      - removable-media
+
+parts:
+  null-scribe:
+    plugin: dump
+    source: app
+    stage-packages:
+      - libnss3
+      - libnspr4
+      - libxss1
+      - libxtst6
+      - libasound2
+      - libgbm1
+      - libsecret-1-0
+      - libnotify4
+    prime:
+      - -usr/share/doc
+      - -usr/share/man
