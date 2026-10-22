@@ -230,7 +230,8 @@ jobs:
       - name: Show the error
         if: failure()
         run: |
-          [ -f "$RUNNER_TEMP/ci.log" ] && tail -n 60 "$RUNNER_TEMP/ci.log" | sed -e 's/%/%25/g' -e 's/^/::warning title=log::/' || true
+          # Only 10 annotations per step show up, so send the log tail as one annotation.
+          [ -f "$RUNNER_TEMP/ci.log" ] && echo "::warning title=log::$(tail -n 60 "$RUNNER_TEMP/ci.log" | sed -e 's/%/%25/g' | awk '{printf "%s%%0A", $0}')" || true
       - uses: actions/upload-artifact@v4
         with:
           name: flatpak-${{ matrix.arch }}
@@ -278,7 +279,8 @@ jobs:
       - name: Show the error
         if: failure()
         run: |
-          [ -f "$RUNNER_TEMP/ci.log" ] && tail -n 60 "$RUNNER_TEMP/ci.log" | sed -e 's/%/%25/g' -e 's/^/::warning title=log::/' || true
+          # Only 10 annotations per step show up, so send the log tail as one annotation.
+          [ -f "$RUNNER_TEMP/ci.log" ] && echo "::warning title=log::$(tail -n 60 "$RUNNER_TEMP/ci.log" | sed -e 's/%/%25/g' | awk '{printf "%s%%0A", $0}')" || true
       - uses: actions/upload-artifact@v4
         with:
           name: snap-${{ matrix.arch }}
@@ -344,7 +346,8 @@ jobs:
       - name: Show the error
         if: failure()
         run: |
-          [ -f "$RUNNER_TEMP/ci.log" ] && tail -n 60 "$RUNNER_TEMP/ci.log" | sed -e 's/%/%25/g' -e 's/^/::warning title=log::/' || true
+          # Only 10 annotations per step show up, so send the log tail as one annotation.
+          [ -f "$RUNNER_TEMP/ci.log" ] && echo "::warning title=log::$(tail -n 60 "$RUNNER_TEMP/ci.log" | sed -e 's/%/%25/g' | awk '{printf "%s%%0A", $0}')" || true
       - uses: actions/upload-artifact@v4
         with:
           name: aur-flathub

@@ -27,4 +27,6 @@ jobs:
           ls -la test.flatpak
       - name: Errors
         if: failure()
-        run: tail -n 50 build.log | sed -e 's/%/%25/g' -e 's/^/::warning title=log::/'
+        run: |
+          # Only 10 annotations per step show up, so send the tail as one annotation.
+          echo "::warning title=log::$(tail -n 40 build.log | sed -e 's/%/%25/g' | awk '{printf "%s%%0A", $0}')"
