@@ -67,7 +67,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      - timeout-minutes: 10
+        run: sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update && sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends ffmpeg
       - run: npm test
 
   linux:
@@ -89,8 +90,9 @@ jobs:
           node-version: 22
           cache: npm
       - name: Build tools
+        timeout-minutes: 15
         run: |
-          sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake g++ git rpm ruby ruby-dev
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update && sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends cmake g++ git rpm ruby ruby-dev
           # electron-builder's bundled fpm (for the .rpm) is x86_64-only; use the system one everywhere.
           sudo gem install --no-document fpm
       - name: Restore engines
@@ -186,8 +188,9 @@ jobs:
           name: linux-${{ matrix.arch }}
           path: linux
       - name: Flatpak tools + Electron runtime
+        timeout-minutes: 15
         run: |
-          sudo apt-get update && sudo apt-get install -y --no-install-recommends flatpak flatpak-builder appstream desktop-file-utils
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update && sudo apt-get -o Acquire::Retries=3 install -y --no-install-recommends flatpak flatpak-builder appstream desktop-file-utils
           # Ubuntu 24.04 blocks unprivileged user namespaces by default; flatpak-builder's bubblewrap needs them.
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
