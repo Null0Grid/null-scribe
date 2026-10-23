@@ -28,6 +28,7 @@ record / import ──► ffmpeg (16 kHz mono WAV) ──► whisper.cpp ──�
 - **Rename speakers:** on the Transcript tab, click a label (`Discord`, `You`) to rename it everywhere: transcript, summary and exports.
 - **Custom words:** names and terms to spell right (Settings → Transcription). They're given to whisper.cpp as its initial prompt and to the summarizer.
 - **Subtitles:** download the transcript as `.srt` or `.vtt` (WebVTT with speaker voice tags).
+- **Documents:** download the summary + transcript as **Document (Microsoft Word)** `.docx` (also opens in Google Docs) or **Document (LibreOffice)** `.odt`, with real headings, ☐ action items and a Time / Speaker / Text transcript table. Letter paper in North America, A4 elsewhere.
 - **Audio auto-delete:** Settings → Storage deletes recordings' audio after 1, 7, 15, 30, 90 or 180 days (default: never). Transcripts and summaries stay.
 - **History** keeps every session on disk in the app's data folder.
 

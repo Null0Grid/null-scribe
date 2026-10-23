@@ -22,6 +22,8 @@ const TRANSCRIPT_FORMATS = {
   md: { label: 'Markdown', ext: 'md' },
   txt: { label: 'Plain text', ext: 'txt' },
   pdf: { label: 'PDF', ext: 'pdf' },
+  docx: { label: 'Document (Microsoft Word)', ext: 'docx' },
+  odt: { label: 'Document (LibreOffice)', ext: 'odt' },
   html: { label: 'Web page', ext: 'html' },
   srt: { label: 'Subtitles (SRT)', ext: 'srt' },
   vtt: { label: 'Subtitles (WebVTT)', ext: 'vtt' },

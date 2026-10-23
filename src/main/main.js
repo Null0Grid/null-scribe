@@ -16,6 +16,7 @@ const capture = require('../capture');
 const { LiveTranscriber } = require('./live');
 const { modelPath } = require('../pipeline/models');
 const exporter = require('../pipeline/export');
+const office = require('../pipeline/office');
 const notes = require('../integrations/notes');
 const drive = require('../integrations/drive');
 const { renameSpeaker } = require('../pipeline/speaker-names');
@@ -521,6 +522,10 @@ function registerIpc() {
       fs.writeFileSync(dest, exporter.buildHtml(doc));
     } else if (format === 'pdf') {
       fs.writeFileSync(dest, await htmlToPdf(exporter.buildHtml(doc), sessions.dirOf(id)));
+    } else if (format === 'docx') {
+      fs.writeFileSync(dest, await office.buildDocx({ ...doc, letter: letterPaper() }));
+    } else if (format === 'odt') {
+      fs.writeFileSync(dest, await office.buildOdt({ ...doc, letter: letterPaper() }));
     } else if (format === 'srt') {
       fs.writeFileSync(dest, exporter.buildSrt(doc.segments));
     } else if (format === 'vtt') {
@@ -590,6 +595,11 @@ async function askSavePath(meta, ext, label) {
   return r.canceled || !r.filePath ? null : r.filePath;
 }
 
+/** US-style Letter paper for North American locales, A4 everywhere else (PDF, Word and LibreOffice exports). */
+function letterPaper() {
+  return /^en-(US|CA)|^es-(US|MX)|^fr-CA/i.test(app.getLocale());
+}
+
 /** Render HTML to PDF with Chromium (no extra dependency). Letter for US/Canada, A4 elsewhere. */
 async function htmlToPdf(html, workDir) {
   const tmp = path.join(workDir, `.export-${Date.now()}.html`);
@@ -597,7 +607,7 @@ async function htmlToPdf(html, workDir) {
   const pdfWin = new BrowserWindow({ show: false, webPreferences: { sandbox: true, javascript: false } });
   try {
     await pdfWin.loadFile(tmp);
-    const letter = /^en-(US|CA)|^es-(US|MX)|^fr-CA/i.test(app.getLocale());
+    const letter = letterPaper();
     return await pdfWin.webContents.printToPDF({ printBackground: true, pageSize: letter ? 'Letter' : 'A4' });
   } finally {
     pdfWin.destroy();

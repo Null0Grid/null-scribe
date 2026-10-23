@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Word and LibreOffice downloads:** Download → *Document (Microsoft Word)* `.docx` and *Document (LibreOffice)* `.odt`. Headings, bullets, ☐ action items, timestamps and a Time / Speaker / Text transcript table; `.docx` also opens in Google Docs.
+
 ## 5.1.1
 
 - **New app icon**: the new Null Grid family logo on the window, taskbar, installer, Microsoft Store tiles and Linux packages.

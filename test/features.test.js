@@ -248,3 +248,83 @@ test('audio auto-delete: only old sessions, only audio files, marks the session'
   assert.strictEqual(normalizeDays('180'), 180);
   assert.strictEqual(normalizeDays(2), 0);
 });
+
+/* ---------- Word and LibreOffice downloads ---------- */
+
+const JSZip = require('jszip');
+const { buildDocx, buildOdt, parseSummary } = require('../src/pipeline/office');
+const { TRANSCRIPT_FORMATS } = require('../src/pipeline/export');
+
+const officeDoc = () => ({
+  meta: { title: 'Q4 <Budget> & Review', createdAt: '2026-10-20T13:30:00.000Z', durationMs: 98000, source: 'Meeting: Discord' },
+  summary: '## Overview\nBudget is **12%** over.\n\n## Key points\n- Licenses [00:39]\n\n## Action items\n- [ ] Tom — send the spreadsheet\n- [x] You — book the room',
+  segments: [
+    { start: 0, end: 2000, text: 'Okay, are we recording?', speaker: 'Luke', role: 'you' },
+    { start: 6000, end: 8000, text: 'Fine & awake \u0007<ok>', speaker: 'Tom', role: 'app' },
+  ],
+});
+
+/** Small well-formedness check: every opened tag is closed in order (no XML parser in Node). */
+function balanced(xml) {
+  const stack = [];
+  for (const m of xml.replace(/<\?[^>]*\?>/g, '').matchAll(/<(\/?)([a-zA-Z][\w:.-]*)[^>]*?(\/?)>/g)) {
+    if (m[3]) continue;
+    if (m[1]) {
+      if (stack.pop() !== m[2]) return false;
+    } else stack.push(m[2]);
+  }
+  return stack.length === 0;
+}
+
+test('download menu lists Word and LibreOffice documents', () => {
+  assert.deepStrictEqual(TRANSCRIPT_FORMATS.docx, { label: 'Document (Microsoft Word)', ext: 'docx' });
+  assert.deepStrictEqual(TRANSCRIPT_FORMATS.odt, { label: 'Document (LibreOffice)', ext: 'odt' });
+});
+
+test('summary Markdown becomes headings, bullets, tasks and timestamp runs', () => {
+  const b = parseSummary(officeDoc().summary);
+  assert.deepStrictEqual(b.map((x) => x.type), ['heading', 'para', 'heading', 'bullet', 'heading', 'task', 'task']);
+  assert.deepStrictEqual(b[1].runs, [{ text: 'Budget is ' }, { text: '12%', bold: true }, { text: ' over.' }]);
+  assert.ok(b[3].runs.some((r) => r.ts && r.text === '00:39'));
+  assert.strictEqual(b[6].done, true);
+});
+
+test('.docx: Word document with headings, checkboxes and the transcript table', async () => {
+  const buf = await buildDocx({ ...officeDoc(), letter: true });
+  const zip = await JSZip.loadAsync(buf);
+  const xml = await zip.file('word/document.xml').async('string');
+  assert.ok(balanced(xml));
+  assert.match(xml, /Q4 &lt;Budget&gt; &amp; Review/);
+  assert.match(xml, /w:pStyle w:val="Heading1"/);
+  assert.match(xml, /w:pStyle w:val="Heading2"/);
+  assert.match(xml, /☐/);
+  assert.match(xml, /☑/);
+  assert.match(xml, /<w:tbl>/);
+  assert.match(xml, /Fine &amp; awake &lt;ok&gt;/); // control character dropped, rest escaped
+  assert.doesNotMatch(xml, /\u0007/);
+  assert.match(xml, /w:pgSz w:w="12240" w:h="15840"/); // Letter
+  const a4 = await JSZip.loadAsync(await buildDocx({ ...officeDoc(), letter: false }));
+  assert.match(await a4.file('word/document.xml').async('string'), /w:pgSz w:w="11906" w:h="16838"/);
+  assert.match(await zip.file('docProps/core.xml').async('string'), /Null Scribe/);
+});
+
+test('.odt: valid OpenDocument package (mimetype first and stored) with the same content', async () => {
+  const buf = await buildOdt({ ...officeDoc(), letter: false });
+  // First local file header: name "mimetype", compression method 0 (stored).
+  assert.strictEqual(buf.readUInt32LE(0), 0x04034b50);
+  assert.strictEqual(buf.readUInt16LE(8), 0);
+  assert.strictEqual(buf.toString('latin1', 30, 38), 'mimetype');
+  assert.strictEqual(buf.toString('latin1', 38, 38 + 39), 'application/vnd.oasis.opendocument.text');
+  const zip = await JSZip.loadAsync(buf);
+  for (const f of ['content.xml', 'styles.xml', 'meta.xml', 'META-INF/manifest.xml']) assert.ok(balanced(await zip.file(f).async('string')), f);
+  const content = await zip.file('content.xml').async('string');
+  assert.match(content, /text:h text:style-name="Heading_20_1" text:outline-level="1">Summary/);
+  assert.match(content, /text:outline-level="2">Action items/);
+  assert.match(content, /☐/);
+  assert.match(content, /<table:table table:name="Transcript"/);
+  assert.match(content, /T_you">Luke</);
+  assert.match(content, /T_app">Tom</);
+  assert.match(content, /Fine &amp; awake &lt;ok&gt;/);
+  assert.doesNotMatch(content, /\u0007/);
+  assert.match(await zip.file('styles.xml').async('string'), /fo:page-width="21.0cm" fo:page-height="29.7cm"/);
+});
