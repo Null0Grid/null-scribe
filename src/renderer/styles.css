@@ -103,9 +103,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .brand-text { min-width: 0; }
 .brand-mark { font: 400 16px var(--f-display); letter-spacing: .06em; line-height: 1.2; }
 .brand-mark span { color: var(--cyan); text-shadow: 0 0 12px var(--glow-c); }
-.brand-tag { font: 11px var(--f-mono); margin-top: 2px; }
-.brand-tag .p { color: var(--pink); }
-.brand-tag .c { color: var(--cyan); }
+.brand-tag { font: 11px var(--f-mono); margin-top: 2px; color: var(--muted); }
 .list-label { font: 400 11px var(--f-display); letter-spacing: .08em; color: var(--muted); padding: 8px 6px 0; }
 .session-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; min-height: 0; }
 .session-item {
@@ -120,7 +118,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .session-item .name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .session-item .sub { font: 11px var(--f-mono); color: var(--muted); }
 .empty { color: var(--muted); font-size: 13px; padding: 8px 6px; }
-.sidebar-foot { margin-top: auto; }
+.sidebar-foot { margin-top: auto; display: flex; gap: 6px; }
+.sidebar-foot .btn { flex: 1; }
 
 /* Main */
 .main { overflow: hidden; min-height: 0; display: flex; }
@@ -312,10 +311,18 @@ textarea:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px var(--cyan-dim
 .speaker-bar .spk-chip .spk { margin-right: 0; }
 .speaker-bar .spk-chip .pen { color: var(--muted); font-size: 11px; }
 .speaker-bar input { padding: 4px 8px; font-size: 12px; width: 150px; }
-.about p { margin: 0; }
-.about .about-name { font-weight: 600; }
-.about .about-name .mono { color: var(--muted); font-weight: 400; margin-left: 6px; }
-.about .about-copy { color: var(--fg); font-size: 13px; }
+.about-dialog { width: min(520px, 92vw); }
+.about-dialog form { display: flex; flex-direction: column; gap: 12px; }
+.about-head { display: flex; align-items: center; gap: 14px; }
+.about-head img { width: 56px; height: 56px; }
+.about-head .brand-mark { font-size: 20px; }
+.about-version { color: var(--muted); font-size: 12px; margin-top: 4px; }
+.about-dialog p { margin: 0; }
+.about-lead { color: var(--fg); font-size: 14px; line-height: 1.5; }
+.about-copy { color: var(--fg); font-size: 13px; font-weight: 600; }
+.about-links { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; }
+.about-links a { color: var(--cyan); text-decoration: none; }
+.about-links a:hover { text-decoration: underline; }
 .dl-item:disabled { opacity: .45; cursor: not-allowed; }
 
 /* Toast */

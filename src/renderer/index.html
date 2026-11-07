@@ -12,7 +12,7 @@
       <img class="brand-icon" src="icon.svg" alt="" />
       <div class="brand-text">
         <div class="brand-mark">NULL SCRIBE</div>
-        <div class="brand-tag"><span class="p">Your data.</span> <span class="c">Your grid.</span></div>
+        <div class="brand-tag">by Null Labs</div>
       </div>
     </div>
     <button id="newBtn" class="btn btn-primary btn-block">+ New capture</button>
@@ -22,7 +22,10 @@
       <div class="live-head"><span id="liveDot" class="live-dot"></span><span id="liveTitle">Live transcript</span><span id="liveCount" class="live-count"></span></div>
       <div id="liveBody" class="live-body"></div>
     </section>
-    <button id="settingsBtn" class="btn btn-ghost btn-block sidebar-foot">Settings</button>
+    <div class="sidebar-foot">
+      <button id="settingsBtn" class="btn btn-ghost">Settings</button>
+      <button id="aboutBtn" class="btn btn-ghost">About</button>
+    </div>
   </aside>
 
   <main class="main">
@@ -256,12 +259,6 @@
         </label>
       </fieldset>
 
-      <fieldset class="about">
-        <legend>About</legend>
-        <p class="about-name">Null Scribe <span id="aboutVersion" class="mono"></span></p>
-        <p class="about-copy">© NULL LABS. All rights reserved.</p>
-        <p class="fineprint">Licensed under GPL-3.0-only. Null, Null Labs, the product names and the // mark are trademarks of Null Labs; forks must use their own name and logo.</p>
-      </fieldset>
 
       <div class="dialog-actions">
         <button value="cancel" class="btn btn-ghost">Cancel</button>
@@ -289,12 +286,35 @@
     </form>
   </dialog>
 
+  <dialog id="aboutDialog" class="dialog lit about-dialog">
+    <form method="dialog">
+      <div class="about-head">
+        <img src="icon.svg" alt="" />
+        <div>
+          <div class="brand-mark">NULL SCRIBE</div>
+          <div class="about-version mono" id="aboutVersion"></div>
+        </div>
+      </div>
+      <p class="about-lead">On-device transcription and AI summaries for your calls and recordings. Part of the Null Suite.</p>
+      <p class="about-copy">© NULL LABS. All rights reserved.</p>
+      <p class="fineprint">The code is licensed under GPL-3.0-only. Null, Null Labs, the product names and the // mark are trademarks of Null Labs; forks must use their own name and logo. Third-party components keep their own licenses.</p>
+      <ul class="about-links">
+        <li><a href="https://nullgrid.dev" target="_blank" rel="noopener">nullgrid.dev</a></li>
+        <li><a href="https://github.com/Null0Grid/null-scribe" target="_blank" rel="noopener">Source code</a></li>
+        <li><a href="https://github.com/Null0Grid/null-scribe/blob/main/PRIVACY.md" target="_blank" rel="noopener">Privacy policy</a></li>
+        <li><a href="https://github.com/Null0Grid/null-brand/blob/main/TRADEMARK.md" target="_blank" rel="noopener">Trademark policy</a></li>
+        <li><a href="https://github.com/Null0Grid/null-scribe/blob/main/THIRD_PARTY_NOTICES.md" target="_blank" rel="noopener">Third-party notices</a></li>
+      </ul>
+      <div class="dialog-actions"><button value="close" class="btn btn-primary" autofocus>Close</button></div>
+    </form>
+  </dialog>
+
   <!-- First-run setup: downloads the models the installer doesn't ship -->
   <section id="setupScreen" class="setup" hidden>
     <div class="setup-card">
       <div class="setup-brand">
         <img src="icon.svg" alt="" />
-        <div><div class="brand-mark">NULL SCRIBE</div><div class="brand-tag"><span class="p">Your data.</span> <span class="c">Your grid.</span></div></div>
+        <div><div class="brand-mark">NULL SCRIBE</div><div class="brand-tag">by Null Labs</div></div>
       </div>
       <h1>Setting up Null Scribe</h1>
       <p class="setup-lead">Null Scribe runs its AI on your device. It needs to download its models once. After that it works fully offline.</p>

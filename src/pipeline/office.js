@@ -11,7 +11,7 @@ const { formatTimestamp } = require('./chunk');
 const { roleOf } = require('./speaker-names');
 
 const COLORS = { text: '121624', muted: '5A6178', accent: '007F99', pink: 'C4126A', line: 'D5DAE6', head: 'F3F5F7' };
-const FOOTER = 'Transcribed and summarized on-device with Null Scribe.';
+const FOOTER = 'Transcribed and summarized on-device with Null Scribe. © NULL LABS. All rights reserved.';
 
 /* ---------------- shared: summary Markdown → blocks ---------------- */
 

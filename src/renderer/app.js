@@ -896,7 +896,6 @@ async function openSettings() {
   const [cfg, models] = await Promise.all([api.getSettings(), api.whisperModels()]);
   const esc = window.escapeHtml;
   llmModels = models.llm;
-  api.appInfo().then((i) => ($('aboutVersion').textContent = `v${i.version}`)).catch(() => {});
   await loadTemplates();
   fillTemplateSelect($('defaultTemplateSelect'), tplUi.defaultId);
   renderCustomTemplateList();
@@ -949,6 +948,15 @@ $('driveTestBtn').addEventListener('click', async () => {
 });
 
 $('settingsBtn').addEventListener('click', openSettings);
+$('aboutBtn').addEventListener('click', async () => {
+  try {
+    const i = await api.appInfo();
+    $('aboutVersion').textContent = `Version ${i.version}`;
+  } catch (_) {
+    /* version stays blank */
+  }
+  $('aboutDialog').showModal();
+});
 $('engineSelect').addEventListener('change', syncEngineUi);
 $('builtinSelect').addEventListener('change', syncEngineUi);
 

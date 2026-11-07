@@ -69,6 +69,11 @@
     <color type="primary" scheme_preference="dark">#0a0a0f</color>
   </branding>
   <releases>
+    <release version="5.2.0" date="2026-11-07">
+      <description>
+        <p>Download summaries and transcripts as Word (.docx) or LibreOffice (.odt) documents, a new About window, and the Null Labs brand. The code is now licensed under GPL-3.0-only.</p>
+      </description>
+    </release>
     <release version="5.1.1" date="2026-10-22">
       <description>
         <p>New app icon. Now also available for ARM64, as a Flatpak, as a Snap and on the AUR.</p>

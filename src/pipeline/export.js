@@ -151,7 +151,7 @@ function buildHtml({ meta, summary, segments }) {
     <h2 class="section">Transcript</h2>
     <table>${rows}</table>
   </section>
-  <footer>Transcribed and summarized on-device with Null Scribe. <span style="color:var(--pink)">Your data.</span> <span style="color:var(--accent)">Your grid.</span></footer>
+  <footer>Transcribed and summarized on-device with Null Scribe. © NULL LABS. All rights reserved.</footer>
 </main>
 </body>
 </html>
