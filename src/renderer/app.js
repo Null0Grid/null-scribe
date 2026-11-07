@@ -896,6 +896,7 @@ async function openSettings() {
   const [cfg, models] = await Promise.all([api.getSettings(), api.whisperModels()]);
   const esc = window.escapeHtml;
   llmModels = models.llm;
+  api.appInfo().then((i) => ($('aboutVersion').textContent = `v${i.version}`)).catch(() => {});
   await loadTemplates();
   fillTemplateSelect($('defaultTemplateSelect'), tplUi.defaultId);
   renderCustomTemplateList();

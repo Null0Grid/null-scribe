@@ -1,13 +1,13 @@
 # Null Scribe Privacy Policy
 
 **Effective date:** October 20, 2026
-**Publisher:** NULLGRID
+**Publisher:** Null Labs
 
-Null Scribe records or imports conversations, transcribes them, and writes AI summaries, all on your own computer. This policy explains what the app does with your data. In short, NULLGRID never receives your recordings, transcripts, or summaries.
+Null Scribe records or imports conversations, transcribes them, and writes AI summaries, all on your own computer. This policy explains what the app does with your data. In short, Null Labs never receives your recordings, transcripts, or summaries.
 
-## What NULLGRID collects
+## What Null Labs collects
 
-**Nothing.** Null Scribe has no accounts, analytics, telemetry, advertising, or crash reporting. NULLGRID runs no servers that the app connects to.
+**Nothing.** Null Scribe has no accounts, analytics, telemetry, advertising, or crash reporting. Null Labs runs no servers that the app connects to.
 
 ## Data stored on your device
 
@@ -30,14 +30,14 @@ Data leaves your computer only in these cases:
 
 - **Model download (first launch).** The app downloads the speech and AI models from Hugging Face (huggingface.co). Hugging Face can see your IP address, as with any download, under [Hugging Face's privacy policy](https://huggingface.co/privacy). No recordings or personal content are sent. Advanced users can point downloads to their own server instead.
 - **Ollama (optional).** If you choose Ollama as the summary engine, transcripts are sent to the Ollama address you enter. Usually that is your own computer or home server.
-- **Send to Null Drive (optional).** When you press Send to Drive, the files you chose are uploaded to the Null Drive server address you entered. That server is yours or one you trust; NULLGRID does not operate it.
+- **Send to Null Drive (optional).** When you press Send to Drive, the files you chose are uploaded to the Null Drive server address you entered. That server is yours or one you trust; Null Labs does not operate it.
 - **Send to Null Notes (optional).** This saves a note into the Null Notes vault folder on your computer. Nothing goes over the network.
 - **Open in Claude (optional).** This copies the summary to your clipboard and opens claude.ai in your browser. Nothing is sent unless you paste it there. Once you do, [Anthropic's privacy policy](https://www.anthropic.com/legal/privacy) applies.
 - **Export.** Audio, transcripts, and summaries you export are saved wherever you choose.
 
 ## Microsoft Store and app distribution
 
-If you install Null Scribe from the Microsoft Store, Microsoft handles purchase, installation, and update data under the [Microsoft Privacy Statement](https://privacy.microsoft.com/privacystatement). NULLGRID does not receive personal information from Microsoft beyond the aggregate download and crash statistics Microsoft provides to app publishers.
+If you install Null Scribe from the Microsoft Store, Microsoft handles purchase, installation, and update data under the [Microsoft Privacy Statement](https://privacy.microsoft.com/privacystatement). Null Labs does not receive personal information from Microsoft beyond the aggregate download and crash statistics Microsoft provides to app publishers.
 
 ## Deleting your data
 
@@ -46,7 +46,7 @@ If you install Null Scribe from the Microsoft Store, Microsoft handles purchase,
 - Uninstalling the Microsoft Store version removes the app's data folder.
 - On Linux, uninstalling leaves your data in `~/.config/Null Scribe`. Delete that folder to remove everything.
 
-Because NULLGRID never receives your data, we have nothing to delete on our end.
+Because Null Labs never receives your data, we have nothing to delete on our end.
 
 ## Recording other people
 
@@ -54,7 +54,7 @@ Recording a conversation without everyone's consent is illegal in many places. Y
 
 ## Children
 
-Null Scribe is not directed at children under 13, and NULLGRID does not knowingly collect information from anyone.
+Null Scribe is not directed at children under 13, and Null Labs does not knowingly collect information from anyone.
 
 ## Changes to this policy
 

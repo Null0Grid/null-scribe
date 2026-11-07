@@ -20,7 +20,7 @@ name: Release
 # copied from Partner Center → Null Scribe → Product identity:
 #   MSIX_IDENTITY_NAME            e.g. NULLGRID.NullScribe
 #   MSIX_PUBLISHER                e.g. CN=8685350B-5C4C-4422-9CDF-8AEB87F50B2F
-#   MSIX_PUBLISHER_DISPLAY_NAME   e.g. NULLGRID
+#   MSIX_PUBLISHER_DISPLAY_NAME   e.g. Null Labs
 #
 # Optional secrets (store publishing, see docs/STORES.md):
 #   SNAPCRAFT_STORE_CREDENTIALS   uploads the .snap files to the Snap Store (stable channel)
@@ -405,7 +405,7 @@ jobs:
         run: |
           $id   = if ('${{ vars.MSIX_IDENTITY_NAME }}') { '${{ vars.MSIX_IDENTITY_NAME }}' } else { 'NULLGRID.NullScribe' }
           $pub  = if ('${{ vars.MSIX_PUBLISHER }}') { '${{ vars.MSIX_PUBLISHER }}' } else { 'CN=8685350B-5C4C-4422-9CDF-8AEB87F50B2F' }
-          $name = if ('${{ vars.MSIX_PUBLISHER_DISPLAY_NAME }}') { '${{ vars.MSIX_PUBLISHER_DISPLAY_NAME }}' } else { 'NULLGRID' }
+          $name = if ('${{ vars.MSIX_PUBLISHER_DISPLAY_NAME }}') { '${{ vars.MSIX_PUBLISHER_DISPLAY_NAME }}' } else { 'Null Labs' }
           $log = 'dist\msix-build.log'
           try {
             ./packaging/msix/build-msix.ps1 -Version $env:VERSION -IdentityName $id -Publisher $pub -PublisherDisplayName $name *>&1 | Tee-Object -FilePath $log
@@ -565,6 +565,6 @@ jobs:
           cp out/null-scribe-bin.PKGBUILD aur/PKGBUILD
           cp out/null-scribe-bin.SRCINFO aur/.SRCINFO
           cd aur
-          git config user.name "NULLGRID" && git config user.email "volosteele55@proton.me"
+          git config user.name "Null Labs" && git config user.email "volosteele55@proton.me"
           git add PKGBUILD .SRCINFO
           git diff --cached --quiet || { git commit -m "Update to $VERSION" && git push; }

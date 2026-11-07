@@ -1,4 +1,4 @@
-/* Null Scribe — Neon Lab, the shared Null Grid design language.
+/* Null Scribe — Neon Lab, the shared Null design language.
    Same tokens as nullgrid.dev, Null Notes and Null Drive: near-black base, electric cyan as the
    primary neon, hot pink as the second, green for live/OK, amber and red only for alerts.
    Dark only. Faint CRT scanlines on the background. */
@@ -312,6 +312,10 @@ textarea:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px var(--cyan-dim
 .speaker-bar .spk-chip .spk { margin-right: 0; }
 .speaker-bar .spk-chip .pen { color: var(--muted); font-size: 11px; }
 .speaker-bar input { padding: 4px 8px; font-size: 12px; width: 150px; }
+.about p { margin: 0; }
+.about .about-name { font-weight: 600; }
+.about .about-name .mono { color: var(--muted); font-weight: 400; margin-left: 6px; }
+.about .about-copy { color: var(--fg); font-size: 13px; }
 .dl-item:disabled { opacity: .45; cursor: not-allowed; }
 
 /* Toast */

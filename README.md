@@ -4,7 +4,7 @@
 
 Null Scribe records or imports a conversation, transcribes it on your own machine with [whisper.cpp](https://github.com/ggml-org/whisper.cpp), and summarizes it with a **built-in 3B model** (llama.cpp, runs inside the app). If you'd rather use your own [Ollama](https://ollama.com) server, that's an option in Settings. Nothing goes to the cloud unless you choose **Open in Claude**.
 
-Part of the Null Grid suite: Null Search · Null Grid · Null Notes · Null Drive · Null Scribe.
+Part of the Null Suite: Null Grid · Null Search · Null Notes · Null Drive · Null Scribe. Made by Null Labs.
 
 ## What it does
 
@@ -21,7 +21,7 @@ record / import ──► ffmpeg (16 kHz mono WAV) ──► whisper.cpp ──�
 - **Record** from the mic (with a live level meter) or **import** any audio or video file (mp3, m4a, wav, ogg, flac, webm, mp4, mkv…).
 - **Transcribe** locally with timestamps. The speech model downloads once, on first use.
 - **Summarize** into Overview, Key points, Decisions, Action items (checklist with owners) and Open questions. Long recordings are split into chunks, each chunk is summarized, and the notes are merged.
-- **Send to Notes / Send to Drive** puts the session straight into Null Notes or onto your Null Drive server (see *Null Grid integration*).
+- **Send to Notes / Send to Drive** puts the session straight into Null Notes or onto your Null Drive server (see *Null Suite integration*).
 - **Open in Claude** copies the summary and transcript to the clipboard and opens claude.ai in your browser, so you can paste it into a new chat and ask questions about it.
 - **Re-summarize** reruns only the summary, for example after switching engine or model. The saved transcript is reused.
 - **Summary templates:** Meeting, Lecture / class, Interview, Stand-up and 1:1, plus your own (Settings → Summary templates, or *+ Add your own…* in any template picker). Pick one before recording, or switch an old recording to another template from its Summary tab.
@@ -32,7 +32,7 @@ record / import ──► ffmpeg (16 kHz mono WAV) ──► whisper.cpp ──�
 - **Audio auto-delete:** Settings → Storage deletes recordings' audio after 1, 7, 15, 30, 90 or 180 days (default: never). Transcripts and summaries stay.
 - **History** keeps every session on disk in the app's data folder.
 
-## Null Grid integration
+## Null Suite integration
 
 ### Send to Notes (Null Notes)
 Saves the session as a note in `<vault>/Scribe/`, with `id: <uuid>` in the frontmatter (the Null Notes note-id format), then opens it with `nullnotes://open?id=<uuid>`. Null Notes' file watcher indexes it within about 2 seconds, so it's also searchable from Null Search. Nothing is ever overwritten: a name clash gets " (2)". Settings suggests your vaults by reading Null Notes' recent-vault list (`dev.nullgrid.notes/settings.json`, including the Microsoft Store install's package folder).
@@ -42,7 +42,7 @@ Uploads to your Null Drive server: the `.md` note, a `.pdf`, and/or the audio (M
 - **Setup:** Settings → Null Drive → server address + a full-access token from *Null Drive → Devices* (a search-only token can't upload). **Test** checks it with `GET /api/v1/me`.
 - **Safe uploads:** `PUT /api/v1/files/{path}` with `If-Match: 0` (create only, never overwrite) and `X-Content-SHA256`. A name clash gets " (2)", and re-sending identical content doesn't make a duplicate.
 - **Token storage:** encrypted with the OS keychain (DPAPI on Windows, libsecret/KWallet on Linux). Without a keychain it's kept in memory until the app closes, never written in plain text.
-- **End-to-end encrypted Drive accounts** only accept files encrypted by a Null Grid app that holds the key, so Scribe detects them (`user.e2ee` from `/api/v1/me`) and suggests Send to Notes instead. Null Notes syncs to encrypted Drive accounts itself.
+- **End-to-end encrypted Drive accounts** only accept files encrypted by a Null app that holds the key, so Scribe detects them (`user.e2ee` from `/api/v1/me`) and suggests Send to Notes instead. Null Notes syncs to encrypted Drive accounts itself.
 - **HTTPS:** a certificate the OS trusts works. Self-signed certificates aren't pinned yet, so use the `http://` LAN address for those.
 
 ## Meeting mode
@@ -144,7 +144,7 @@ Publishing to Flathub, the Snap Store and the AUR is described in [docs/STORES.m
 
 ### Microsoft Store
 
-1. The Partner Center identity is built in: `NULLGRID.NullScribe`, publisher `CN=8685350B-5C4C-4422-9CDF-8AEB87F50B2F`, display name `NULLGRID` (package family `NULLGRID.NullScribe_yb898v9ybphdc`, Store ID [9P2FHWTQPN6G](https://apps.microsoft.com/detail/9P2FHWTQPN6G)). The repository variables `MSIX_IDENTITY_NAME`, `MSIX_PUBLISHER` and `MSIX_PUBLISHER_DISPLAY_NAME` override them if they ever change.
+1. The Partner Center identity is built in: `NULLGRID.NullScribe`, publisher `CN=8685350B-5C4C-4422-9CDF-8AEB87F50B2F`, display name `Null Labs` (package family `NULLGRID.NullScribe_yb898v9ybphdc`, Store ID [9P2FHWTQPN6G](https://apps.microsoft.com/detail/9P2FHWTQPN6G)). The repository variables `MSIX_IDENTITY_NAME`, `MSIX_PUBLISHER` and `MSIX_PUBLISHER_DISPLAY_NAME` override them if they ever change.
 2. Run the Release workflow and upload the `.msix` to a new submission. It's unsigned on purpose; the Store signs it.
 3. Listing notes: mention "Built with Llama" (Llama 3.2 license). In the certification notes, explain the microphone and audio-recording use, and that the models download on first launch.
 
@@ -164,7 +164,7 @@ The manifest (`packaging/msix/AppxManifest.xml`) declares full trust and the mic
 
 Inside it: `settings.json`, `models/` (speech and summary models), and `sessions/<id>/` holding `audio.wav`, `transcript.json`, `summary.md`, `document.md` and `meta.json`. Deleting a session removes its folder.
 
-Nothing is sent to NULLGRID. See the [Privacy Policy](PRIVACY.md) for what leaves your device and when.
+Nothing is sent to Null Labs. See the [Privacy Policy](PRIVACY.md) for what leaves your device and when.
 
 ## Project layout
 
@@ -213,4 +213,10 @@ Use your own files with `npm run test:recording -- my-call.mp3 my-script.md`. Mo
 - `ffmpeg-static` ships a GPL build of FFmpeg as a separate executable. Keep its license notice with releases, and review the licensing before publishing.
 - Model licenses are summarized above for convenience. Read the actual license texts before a commercial release.
 
-Copyright © NULLGRID. All rights reserved.
+## License and trademarks
+
+The code is licensed under the [GNU General Public License v3.0 only](LICENSE) (`GPL-3.0-only`). Bundled and downloaded third-party components keep their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+> Null, Null Labs, the product names and the // mark are trademarks of Null Labs. The code is open source; the brand is not — forks must use their own name and logo. See the [trademark policy](https://github.com/Null0Grid/null-brand/blob/main/TRADEMARK.md).
+
+© NULL LABS. All rights reserved.

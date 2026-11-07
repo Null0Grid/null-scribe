@@ -1,7 +1,7 @@
 # Publishing Null Scribe to Linux app stores
 
 Every release already puts the Flatpak, Snap and AUR files on GitHub. Getting them into the stores themselves
-needs a one-time sign-up with each, under the NULLGRID name. After that, releases update the Snap Store and the AUR
+needs a one-time sign-up with each, under the Null Labs name. After that, releases update the Snap Store and the AUR
 automatically; Flathub updates by a small pull request.
 
 ## Flathub (Flatpak)
@@ -25,8 +25,7 @@ One time:
 Each release: replace `dev.nullgrid.scribe.yml` in `flathub/dev.nullgrid.scribe` with the new release's
 `dev.nullgrid.scribe.flathub.yml` (it already has the new URLs and checksums) and merge the pull request Flathub's bot builds.
 
-The app is proprietary, so the metainfo says `LicenseRef-proprietary`. Flathub allows that because NULLGRID owns the app
-and lets Flathub redistribute it.
+The code is GPL-3.0-only, so the metainfo says `GPL-3.0-only`. The name and logo are trademarks of Null Labs (see the trademark policy), so the Flathub listing must be published by Null Labs itself.
 
 ## Snap Store
 

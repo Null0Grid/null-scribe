@@ -151,6 +151,7 @@ function registerIpc() {
   });
 
   ipcMain.handle('settings:get', () => settings.get());
+  ipcMain.handle('app:info', () => ({ name: app.getName(), version: app.getVersion() }));
   ipcMain.handle('settings:set', (_e, patch) => {
     const before = settings.get().audioRetentionDays;
     const next = settings.set(patch);

@@ -5,10 +5,10 @@
   <name>Null Scribe</name>
   <summary>Transcribe conversations and get AI summaries on your device</summary>
   <developer id="dev.nullgrid">
-    <name>NULLGRID</name>
+    <name>Null Labs</name>
   </developer>
   <metadata_license>CC0-1.0</metadata_license>
-  <project_license>LicenseRef-proprietary</project_license>
+  <project_license>GPL-3.0-only</project_license>
   <description>
     <p>
       Null Scribe records or imports conversations, transcribes them on your own computer and writes an AI summary

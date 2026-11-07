@@ -13,7 +13,7 @@ description: |
   The models (about 2.2 GB) download once on first launch. Built with Llama.
 
   Microphone access: run `sudo snap connect null-scribe:audio-record` once if recording stays silent.
-license: Proprietary
+license: GPL-3.0-only
 website: https://github.com/Null0Grid/null-scribe
 issues: https://github.com/Null0Grid/null-scribe/issues
 icon: snap/gui/null-scribe.png

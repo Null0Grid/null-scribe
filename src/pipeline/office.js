@@ -99,7 +99,7 @@ async function buildDocx({ meta, summary, segments, letter = true }) {
     });
 
   const body = [];
-  body.push(new Paragraph({ children: [new TextRun({ text: 'NULL//SCRIBE', font: 'Consolas', size: 16, bold: true, color: COLORS.accent })] }));
+  body.push(new Paragraph({ children: [new TextRun({ text: 'NULL SCRIBE', font: 'Consolas', size: 16, bold: true, color: COLORS.accent })] }));
   body.push(new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun({ text: xmlSafe(meta.title) })] }));
   body.push(new Paragraph({ spacing: { after: 240 }, children: [new TextRun({ text: xmlSafe(metaLines(meta).join('  ·  ')), color: COLORS.muted, size: 20 })] }));
 
@@ -213,7 +213,7 @@ function odtSpans(runs, { done = false } = {}) {
 
 function odtContent({ meta, summary, segments }) {
   const out = [];
-  out.push(`<text:p text:style-name="P_brand">NULL//SCRIBE</text:p>`);
+  out.push(`<text:p text:style-name="P_brand">NULL SCRIBE</text:p>`);
   out.push(`<text:p text:style-name="Title">${esc(meta.title)}</text:p>`);
   out.push(`<text:p text:style-name="P_meta">${esc(metaLines(meta).join('  ·  '))}</text:p>`);
   out.push(`<text:h text:style-name="Heading_20_1" text:outline-level="1">Summary</text:h>`);

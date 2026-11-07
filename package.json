@@ -5,11 +5,11 @@
   "description": "Record or import a conversation, transcribe it locally and summarize it with your own Ollama server. Your data. Your grid.",
   "main": "src/main/main.js",
   "author": {
-    "name": "NULLGRID",
+    "name": "Null Labs",
     "email": "volosteele55@proton.me"
   },
   "homepage": "https://nullgrid.dev",
-  "license": "UNLICENSED",
+  "license": "GPL-3.0-only",
   "private": true,
   "scripts": {
     "start": "electron .",
@@ -34,7 +34,7 @@
   "build": {
     "appId": "dev.nullgrid.scribe",
     "productName": "Null Scribe",
-    "copyright": "Copyright © NULLGRID. All rights reserved.",
+    "copyright": "© NULL LABS. All rights reserved.",
     "files": [
       "src/**/*",
       "package.json"
@@ -63,9 +63,9 @@
         "tar.gz"
       ],
       "category": "Office",
-      "maintainer": "NULLGRID <volosteele55@proton.me>",
+      "maintainer": "Null Labs <volosteele55@proton.me>",
       "synopsis": "On-device transcription and AI summaries",
-      "description": "Record or import conversations, transcribe them locally with whisper.cpp and get an AI summary from a built-in model. Part of the Null Grid suite.",
+      "description": "Record or import conversations, transcribe them locally with whisper.cpp and get an AI summary from a built-in model. Part of the Null Suite.",
       "icon": "build/icon.png",
       "executableName": "null-scribe",
       "artifactName": "null-scribe_${version}_${arch}.${ext}"

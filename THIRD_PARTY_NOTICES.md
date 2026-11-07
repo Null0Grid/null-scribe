@@ -1,6 +1,6 @@
 # Third-party notices
 
-Null Scribe is proprietary (see LICENSE). It bundles or downloads the following, under their own licenses.
+Null Scribe is licensed under GPL-3.0-only (see LICENSE). It bundles or downloads the following, under their own licenses.
 
 ## Bundled in the app
 

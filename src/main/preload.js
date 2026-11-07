@@ -36,6 +36,7 @@ contextBridge.exposeInMainWorld('scribe', {
   runTracks: (tracks, title, sourceName, templateId) => ipcRenderer.invoke('pipeline:run', { tracks, title, sourceName, templateId }),
 
   getSettings: () => ipcRenderer.invoke('settings:get'),
+  appInfo: () => ipcRenderer.invoke('app:info'),
   setSettings: (patch) => ipcRenderer.invoke('settings:set', patch),
   whisperModels: () => ipcRenderer.invoke('models:list'),
   testOllama: (host) => ipcRenderer.invoke('ollama:test', host),

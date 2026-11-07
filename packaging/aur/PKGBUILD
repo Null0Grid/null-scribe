@@ -1,12 +1,12 @@
-# Maintainer: NULLGRID <volosteele55@proton.me>
+# Maintainer: Null Labs <volosteele55@proton.me>
 # Template: scripts/render-packaging.js fills in the version, sources and checksums for each release.
 pkgname=null-scribe-bin
 pkgver=@VERSION@
 pkgrel=1
-pkgdesc="Transcribe conversations and get AI summaries on your device (Null Grid)"
+pkgdesc="Transcribe conversations and get AI summaries on your device (Null Suite)"
 arch=('x86_64' 'aarch64')
 url="https://github.com/Null0Grid/null-scribe"
-license=('LicenseRef-NULLGRID')
+license=('GPL-3.0-only')
 depends=('gtk3' 'nss' 'alsa-lib' 'libxss' 'libxtst' 'libnotify' 'at-spi2-core' 'xdg-utils')
 optdepends=('pipewire: Meeting mode (record chosen apps)'
             'libsecret: keep the Null Drive token in the system keyring')

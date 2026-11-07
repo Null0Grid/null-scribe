@@ -95,7 +95,7 @@ function apiError(r, fallback) {
 
 function e2eeError() {
   return new DriveError(
-    'This Null Drive account is end-to-end encrypted, so it only accepts files encrypted by a Null Grid app that holds your key. Send the session to Null Notes instead: Null Notes syncs it to your encrypted Drive.',
+    'This Null Drive account is end-to-end encrypted, so it only accepts files encrypted by a Null app that holds your key. Send the session to Null Notes instead: Null Notes syncs it to your encrypted Drive.',
     'e2ee'
   );
 }

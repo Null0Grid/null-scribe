@@ -1,7 +1,7 @@
 # Build the Microsoft Store package (MSIX) from electron-builder's dist\win-unpacked.
 #
 #   pwsh packaging/msix/build-msix.ps1 -Version 1.0.0 `
-#        -IdentityName NULLGRID.NullScribe -Publisher "CN=..." -PublisherDisplayName NULLGRID
+#        -IdentityName NULLGRID.NullScribe -Publisher "CN=..." -PublisherDisplayName "Null Labs"
 #
 # Uses MakePri and MakeAppx from the Windows SDK (present on GitHub's windows runners).
 # The package is unsigned on purpose: the Store signs it. For a local sideload test,
@@ -10,7 +10,7 @@ param(
   [Parameter(Mandatory = $true)][string]$Version,
   [string]$IdentityName = 'NULLGRID.NullScribe',
   [string]$Publisher = 'CN=8685350B-5C4C-4422-9CDF-8AEB87F50B2F',
-  [string]$PublisherDisplayName = 'NULLGRID',
+  [string]$PublisherDisplayName = 'Null Labs',
   [string]$Unpacked = 'dist\win-unpacked',
   [string]$OutDir = 'dist'
 )

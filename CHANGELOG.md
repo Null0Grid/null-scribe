@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Brand:** Null Scribe is part of **Null** by **Null Labs**. The in-app wordmark reads NULL SCRIBE (no slashes), Settings has an **About** section with the version and `© NULL LABS. All rights reserved.`, and Linux/AUR/Store metadata name Null Labs as the developer. The Microsoft Store display name follows Partner Center (Null Labs); the package identity is unchanged.
+- **License:** the code is now GPL-3.0-only (`LICENSE`). The names and the // mark stay trademarks of Null Labs; see the trademark note in the README.
+- Store icon exports in `assets/store/` (300, 150 and 71 px on #0a0a0f).
 - **Word and LibreOffice downloads:** Download → *Document (Microsoft Word)* `.docx` and *Document (LibreOffice)* `.odt`. Headings, bullets, ☐ action items, timestamps and a Time / Speaker / Text transcript table; `.docx` also opens in Google Docs.
 
 ## 5.1.1
